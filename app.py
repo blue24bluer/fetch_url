@@ -30,9 +30,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1783260170.478,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-q5wemn",
@@ -42,12 +42,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489408,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-3opvp5",
@@ -57,12 +57,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767708183,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-gi56tq",
@@ -72,12 +72,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767602836,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1kr8jdu",
@@ -87,12 +87,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489418,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1s5g4ww",
@@ -102,12 +102,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767465874,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-5qhl31",
@@ -117,12 +117,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489570,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-xuwub9",
@@ -132,12 +132,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767708192,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1e8qh5h",
@@ -147,12 +147,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767486888,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-ace2ut",
@@ -162,12 +162,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489544,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-3PSID",
@@ -180,9 +180,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.007,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-16nf9p8",
@@ -192,12 +192,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489698,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "GPS",
@@ -207,12 +207,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": True,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767706979.117,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1o51oq7",
@@ -222,12 +222,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489573,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1rtycse",
@@ -237,12 +237,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463441,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1toko3j",
@@ -252,12 +252,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487647,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "SIDCC",
@@ -267,12 +267,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1799244190.871,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-17d5m27",
@@ -282,12 +282,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767611017,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "YSC",
@@ -300,8 +300,8 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": True,
         "firstPartyDomain": "",
-        "partitionKey": null,
-        "storeId": null
+        "partitionKey": "null",
+        "storeId": "null"
     },
     {
         "name": "SID",
@@ -311,12 +311,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.006,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-sumaij",
@@ -326,12 +326,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767611622,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-mhdui5",
@@ -341,12 +341,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767611783,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-1PSIDTS",
@@ -356,12 +356,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": True,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1799244190.867,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1bu2ep1",
@@ -371,12 +371,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463661,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "CONSISTENCY",
@@ -386,12 +386,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487440,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1yqlfwl",
@@ -401,12 +401,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610461,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-os0z72",
@@ -416,12 +416,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767611619,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-jvmgmj",
@@ -431,12 +431,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487710,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-r31a7a",
@@ -446,12 +446,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767465607,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1clso3x",
@@ -461,12 +461,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487905,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1iswhfv",
@@ -476,12 +476,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487690,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-lxknqo",
@@ -491,12 +491,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767465558,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1j2b39n",
@@ -506,12 +506,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487685,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1tokbqj",
@@ -521,12 +521,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463551,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "SAPISID",
@@ -536,12 +536,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.005,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-1PSIDCC",
@@ -551,12 +551,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": True,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1799244190.871,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "SSID",
@@ -566,12 +566,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": True,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.004,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-42irzv",
@@ -581,12 +581,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463612,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1ao3vjh",
@@ -596,12 +596,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767465424,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1svge7f",
@@ -611,12 +611,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487749,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1sr86d3",
@@ -626,12 +626,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463714,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1ystp2n",
@@ -641,12 +641,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610868,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-lxvyxi",
@@ -656,12 +656,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489588,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-tladcw",
@@ -671,12 +671,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767708183,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-f3ql9y",
@@ -686,12 +686,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487930,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-1PAPISID",
@@ -701,12 +701,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.005,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-1PSID",
@@ -716,12 +716,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": True,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.007,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-3PAPISID",
@@ -734,9 +734,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.006,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-3PSIDCC",
@@ -749,9 +749,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1799244190.873,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-3PSIDTS",
@@ -764,9 +764,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1799244190.87,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "__Secure-YNID",
@@ -779,9 +779,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1783257179.114,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "APISID",
@@ -791,12 +791,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.004,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "HSID",
@@ -806,12 +806,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": True,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.003,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "LOGIN_INFO",
@@ -824,9 +824,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802265201.405,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "PREF",
@@ -836,12 +836,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": True,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1802268181.392,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1019tte",
@@ -851,12 +851,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767611769,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-127l08q",
@@ -866,12 +866,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489807,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-16n87dx",
@@ -881,12 +881,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610545,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-178eqbm",
@@ -896,12 +896,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767465567,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-17wt2eh",
@@ -911,12 +911,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463484,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-18wnuyd",
@@ -926,12 +926,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487755,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-193ml0l",
@@ -941,12 +941,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610578,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-19mbhva",
@@ -956,12 +956,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463545,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1b",
@@ -971,12 +971,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487652,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1g595gv",
@@ -986,12 +986,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610935,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1m2hbr6",
@@ -1001,12 +1001,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489442,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1mcp4tr",
@@ -1016,12 +1016,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767611086,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1qvt8gk",
@@ -1031,12 +1031,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767488152,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1s5r1tl",
@@ -1046,12 +1046,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767486748,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1topz11",
@@ -1061,12 +1061,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487672,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1vk6wxg",
@@ -1076,12 +1076,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487941,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1x6uwsr",
@@ -1091,12 +1091,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487782,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-1y9r0qn",
@@ -1106,12 +1106,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463503,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-2wu7xv",
@@ -1121,12 +1121,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463509,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-2xvi9k",
@@ -1136,12 +1136,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767488234,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-2xwyeb",
@@ -1151,12 +1151,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489467,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-2zgene",
@@ -1166,12 +1166,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767488048,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-4tsp73",
@@ -1181,12 +1181,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487949,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-5u3s8",
@@ -1196,12 +1196,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489981,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-7e4n3k",
@@ -1211,12 +1211,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767486754,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-ace1sf",
@@ -1226,12 +1226,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610667,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-ah0uka",
@@ -1241,12 +1241,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767486843,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-esawj3",
@@ -1256,12 +1256,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610758,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-g7vchd",
@@ -1271,12 +1271,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767610523,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-ha8jia",
@@ -1286,12 +1286,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463426,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-l3hjtt",
@@ -1301,12 +1301,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767705223,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-m7evk7",
@@ -1316,12 +1316,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463580,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-mcpw83",
@@ -1331,12 +1331,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463604,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-ovyxu1",
@@ -1346,12 +1346,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463456,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-qe5dyu",
@@ -1361,12 +1361,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767465449,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-qrt345",
@@ -1376,12 +1376,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767463731,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-rqsn6z",
@@ -1391,12 +1391,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767486765,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-ss4wb1",
@@ -1406,12 +1406,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767489957,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-v9utxt",
@@ -1421,12 +1421,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487984,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-vz9wjy",
@@ -1436,12 +1436,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767486897,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-y9gka5",
@@ -1451,12 +1451,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487879,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-y9lnzh",
@@ -1466,12 +1466,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767487894,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "ST-zfaggf",
@@ -1481,12 +1481,12 @@ RAW_COOKIES_JSON = [
         "path": "/",
         "secure": False,
         "httpOnly": False,
-        "sameSite": null,
+        "sameSite": "null",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1767611306,
-        "storeId": null
+        "storeId": "null"
     },
     {
         "name": "VISITOR_INFO1_LIVE",
@@ -1499,9 +1499,9 @@ RAW_COOKIES_JSON = [
         "sameSite": "no_restriction",
         "session": False,
         "firstPartyDomain": "",
-        "partitionKey": null,
+        "partitionKey": "null",
         "expirationDate": 1783260170.478,
-        "storeId": null
+        "storeId": "null"
     }
 ]
 
