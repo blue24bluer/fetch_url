@@ -8,6 +8,7 @@ app = Flask(__name__)
 def convert_cookies():
     try:
         if not os.path.exists('youtube.json'):
+            print("youtube.json not found")
             return None
             
         with open('youtube.json', 'r') as f:
@@ -25,7 +26,8 @@ def convert_cookies():
                 value = c.get('value', '')
                 f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
         return 'cookies.txt'
-    except:
+    except Exception as e:
+        print(f"Cookie conversion error: {e}")
         return None
 
 @app.route('/api/download', methods=['POST'])
@@ -39,7 +41,15 @@ def download_media():
     ydl_opts = {
         'quiet': True,
         'noplaylist': True,
-        'socket_timeout': 10
+        'socket_timeout': 30,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios']
+            }
+        },
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
     }
 
     if cookie_file:
