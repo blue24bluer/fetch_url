@@ -1,8 +1,32 @@
 import os
+import json
 from flask import Flask, request, jsonify
 import yt_dlp
 
 app = Flask(__name__)
+
+def convert_cookies():
+    try:
+        if not os.path.exists('youtube.json'):
+            return None
+            
+        with open('youtube.json', 'r') as f:
+            cookies = json.load(f)
+            
+        with open('cookies.txt', 'w') as f:
+            f.write("# Netscape HTTP Cookie File\n")
+            for c in cookies:
+                domain = c.get('domain', '')
+                flag = 'TRUE' if domain.startswith('.') else 'FALSE'
+                path = c.get('path', '/')
+                secure = 'TRUE' if c.get('secure') else 'FALSE'
+                expiry = str(int(c.get('expirationDate', c.get('expiry', 0))))
+                name = c.get('name', '')
+                value = c.get('value', '')
+                f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
+        return 'cookies.txt'
+    except:
+        return None
 
 @app.route('/api/download', methods=['POST'])
 def download_media():
@@ -10,12 +34,16 @@ def download_media():
     url = data.get('url')
     media_type = data.get('type')
 
+    cookie_file = convert_cookies()
+
     ydl_opts = {
-        'cookiefile': 'youtube.json',
         'quiet': True,
         'noplaylist': True,
         'socket_timeout': 10
     }
+
+    if cookie_file:
+        ydl_opts['cookiefile'] = cookie_file
 
     if media_type == 'audio':
         ydl_opts['format'] = 'bestaudio/best'
