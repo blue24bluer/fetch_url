@@ -19,7 +19,6 @@ if not os.path.exists(DOWNLOAD_FOLDER):
 # منطقة الكوكيز المدمجة (تم نسخ بياناتك هنا)
 # ==========================================
 RAW_COOKIES_JSON = [
-    [
     {
         "name": "VISITOR_PRIVACY_METADATA",
         "value": "CgJZRRIEGgAgTA%3D%3D",
