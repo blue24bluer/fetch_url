@@ -1,5 +1,6 @@
 import os
 import uuid
+import json
 import requests
 import mimetypes
 from flask import Flask, request, jsonify
@@ -7,45 +8,58 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# مجلد حفظ الملفات
 DOWNLOAD_FOLDER = 'downloads'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
 class SmartDownloader:
-    """
-    كلاس مسؤول عن توجيه الرابط للتقنية المناسبة
-    """
     
     @staticmethod
+    def _prepare_cookies():
+        json_file = 'cookies.json'
+        txt_file = 'cookies.txt'
+        
+        if os.path.exists(json_file):
+            try:
+                with open(json_file, 'r') as f:
+                    cookies = json.load(f)
+                
+                with open(txt_file, 'w') as f:
+                    f.write("# Netscape HTTP Cookie File\n")
+                    for c in cookies:
+                        domain = c.get('domain', '')
+                        path = c.get('path', '/')
+                        secure = 'TRUE' if c.get('secure', False) else 'FALSE'
+                        expires = str(int(c.get('expirationDate', 0))) if c.get('expirationDate') else '0'
+                        name = c.get('name', '')
+                        value = c.get('value', '')
+                        flag = 'TRUE' if domain.startswith('.') else 'FALSE'
+                        f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n")
+                return txt_file
+            except Exception as e:
+                print(f"Cookie Conversion Error: {e}")
+                return None
+        elif os.path.exists(txt_file):
+            return txt_file
+        return None
+
+    @staticmethod
     def identify_and_download(url):
-        """
-        المنطق الذكي:
-        1. يحاول معرفة نوع المحتوى عبر الرأس (HEAD request).
-        2. إذا كان فيديو من منصة معروفة، يستخدم yt-dlp.
-        3. إذا كان ملف مباشر، يستخدم requests.
-        """
         try:
-            # الخطوة 1: فحص نوع الرابط مبدئياً
             try:
                 response = requests.head(url, allow_redirects=True, timeout=5)
                 content_type = response.headers.get('Content-Type', '').lower()
-                content_length = response.headers.get('Content-Length', 0)
             except:
                 content_type = ''
             
-            # قائمة المنصات التي يفضل استخدام yt-dlp معها حتى لو كان الرابط يبدو مباشراً
             video_platforms = ['youtube.com', 'youtu.be', 'tiktok.com', 'instagram.com', 'twitter.com', 'x.com', 'facebook.com']
             is_video_platform = any(platform in url for platform in video_platforms)
 
-            # القرار الذكي
             if is_video_platform:
                 return SmartDownloader.download_video(url)
             elif 'text/html' not in content_type and content_type != '':
-                # غالباً رابط مباشر لملف (صورة، مضغوط، pdf)
                 return SmartDownloader.download_direct_file(url, response)
             else:
-                # محاولة أخيرة كفيديو (للمواقع التي لا تظهر في القائمة أعلاه)
                 return SmartDownloader.download_video(url)
 
         except Exception as e:
@@ -53,19 +67,27 @@ class SmartDownloader:
 
     @staticmethod
     def download_video(url):
-        """تنزيل الفيديوهات باستخدام yt-dlp"""
-        print(f"[*] Detected Video Platform. Processing: {url}")
-        
-        # إعدادات فريدة لكل عملية تنزيل
         file_id = str(uuid.uuid4())[:8]
         output_template = os.path.join(DOWNLOAD_FOLDER, f'%(title)s_{file_id}.%(ext)s')
         
+        cookie_path = SmartDownloader._prepare_cookies()
+
         ydl_opts = {
             'outtmpl': output_template,
-            'format': 'best', # أفضل جودة
+            'format': 'best',
             'quiet': True,
             'no_warnings': True,
-            'restrictfilenames': True, # تنظيف اسم الملف
+            'restrictfilenames': True,
+            'cookiefile': cookie_path,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web']
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+            },
+            'nocheckcertificate': True,
         }
 
         try:
@@ -74,22 +96,18 @@ class SmartDownloader:
                 filename = ydl.prepare_filename(info)
                 return {
                     'status': 'success',
-                    'method': 'video_engine (yt-dlp)',
+                    'method': 'video_engine',
                     'title': info.get('title', 'Unknown'),
                     'duration': info.get('duration'),
                     'filename': os.path.basename(filename),
                     'path': filename
                 }
         except Exception as e:
-            return {'status': 'error', 'message': f"Video download failed: {str(e)}"}
+            return {'status': 'error', 'message': str(e)}
 
     @staticmethod
     def download_direct_file(url, head_response):
-        """تنزيل الملفات المباشرة باستخدام Requests"""
-        print(f"[*] Detected Direct File. Processing: {url}")
-        
         try:
-            # استخراج اسم الملف من الرابط أو إنشاء اسم عشوائي
             filename = url.split('/')[-1].split('?')[0]
             if not filename or len(filename) > 100:
                 ext = mimetypes.guess_extension(head_response.headers.get('Content-Type')) or '.bin'
@@ -97,7 +115,6 @@ class SmartDownloader:
             
             save_path = os.path.join(DOWNLOAD_FOLDER, filename)
             
-            # التحميل بنظام الـ Stream للملفات الكبيرة
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
                 with open(save_path, 'wb') as f:
@@ -108,38 +125,33 @@ class SmartDownloader:
             
             return {
                 'status': 'success',
-                'method': 'direct_link (requests)',
+                'method': 'direct_link',
                 'filename': filename,
                 'size_bytes': file_size,
                 'path': save_path
             }
         except Exception as e:
-            return {'status': 'error', 'message': f"Direct download failed: {str(e)}"}
+            return {'status': 'error', 'message': str(e)}
 
 @app.route('/')
 def home():
     return jsonify({
         "message": "Welcome to Smart Downloader API",
-        "usage": "Send POST request to /api/download with JSON {'url': '...'}"
+        "usage": "Send POST request to /api/download"
     })
 
 @app.route('/api/download', methods=['POST'])
 def process_download():
     data = request.get_json()
-    
     if not data or 'url' not in data:
         return jsonify({'error': 'URL is required'}), 400
     
     url = data['url']
-    
-    # استدعاء المحرك الذكي
     result = SmartDownloader.identify_and_download(url)
     
     status_code = 200 if result.get('status') == 'success' else 500
     return jsonify(result), status_code
 
 if __name__ == '__main__':
-    # الحصول على المنفذ من متغيرات البيئة في السيرفر أو استخدام 5000 كاحتياط
     port = int(os.environ.get('PORT', 5000))
-    # التشغيل على 0.0.0.0 أمر ضروري للمنصات السحابية
     app.run(host='0.0.0.0', port=port)
