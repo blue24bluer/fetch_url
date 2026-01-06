@@ -1,22 +1,19 @@
 import os
 import uuid
-import json
 import requests
 import mimetypes
 from flask import Flask, request, jsonify
 import yt_dlp
 
-# abc update 
-
 app = Flask(__name__)
 
-# إعداد المجلدات
+# إنشاء مجلد التحميل
 DOWNLOAD_FOLDER = 'downloads'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
 # ==========================================
-# منطقة الكوكيز المدمجة (تم نسخ بياناتك هنا)
+# بيانات الكوكيز (تم التحديث للتوافق)
 # ==========================================
 RAW_COOKIES_JSON = [
     {
@@ -1509,34 +1506,54 @@ class SmartDownloader:
     
     @staticmethod
     def _create_cookie_file():
-        """يكتب ملف الكوكيز مباشرة على سيرفر Render"""
-        txt_file = '/tmp/cookies.txt' # استخدام tmp لأنه مجلد مضمون الكتابة فيه
+        """
+        إصلاح جذري لمشكلة النقطة في اسم النطاق مع بايثون 3.13+
+        """
+        txt_file = '/tmp/cookies.txt'
         
         try:
             with open(txt_file, 'w') as f:
                 f.write("# Netscape HTTP Cookie File\n")
-                # كتابة أهم الكوكيز من القائمة المدمجة
+                
                 for c in RAW_COOKIES_JSON:
-                    domain = c.get('domain', '.youtube.com')
-                    flag = 'True' if domain.startswith('.') else 'False'
+                    original_domain = c.get('domain', '.youtube.com')
                     path = c.get('path', '/')
-                    secure = 'True' if c.get('secure', False) else 'False'
+                    secure = 'TRUE' if c.get('secure', False) else 'FALSE'
+                    # تحويل التاريخ إلى رقم صحيح لتجنب الفواصل العشرية
                     expires = str(int(c.get('expirationDate', 0))) if c.get('expirationDate') else '0'
                     name = c.get('name', '')
                     value = c.get('value', '')
-                    f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n")
-            print("[+] Cookies written successfully to disk.")
+                    
+                    # === الحل السحري للمشكلة ===
+                    # إذا كان النطاق يبدأ بنقطة، نزيل النقطة في الكتابة ونبقي العلم TRUE
+                    # هذا يرضي strict validators في Python الجديد
+                    if original_domain.startswith('.'):
+                        domain_to_write = original_domain[1:] # إزالة النقطة الأولى
+                        flag = 'TRUE'
+                    else:
+                        domain_to_write = original_domain
+                        flag = 'FALSE'
+                        
+                    # كتابة السطر بالتنسيق الصحيح
+                    # لاحظ أننا نضيف #HttpOnly_ بشكل وقائي لبعض الكوكيز الحساسة لو تطلب الأمر
+                    # لكن التعديل أعلاه عادة ما يكفي
+                    f.write(f"{domain_to_write}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n")
+            
+            print("[+] Cookies generated successfully (Strict Format Fix applied).")
             return txt_file
         except Exception as e:
-            print(f"[-] Error writing cookies: {e}")
+            print(f"[-] Critical Error writing cookies: {e}")
             return None
 
     @staticmethod
     def _get_format_string(req_type, quality):
+        """تحديد أفضل صيغة للتحميل بناءً على نوع الطلب"""
         if req_type == 'audio':
+            # تنزيل أفضل صوت (عادة m4a) مباشرة دون الحاجة لـ FFmpeg
             return 'bestaudio[ext=m4a]/bestaudio/best'
         else:
             if not quality or quality == 'best':
+                # تنزيل أفضل فيديو جاهز بملف واحد (لتجنب دمج الفيديو والصوت)
                 return 'best[ext=mp4]/best'
             else:
                 return f'best[height<={quality}][ext=mp4]/best[ext=mp4]/best'
@@ -1544,18 +1561,21 @@ class SmartDownloader:
     @staticmethod
     def identify_and_download(url, req_type='video', quality='best'):
         try:
-            video_platforms = ['youtube.com', 'youtu.be', 'tiktok.com', 'instagram.com', 'facebook.com', 'twitch.tv']
+            # قائمة المنصات المدعومة
+            video_platforms = ['youtube.com', 'youtu.be', 'tiktok.com', 'instagram.com', 'facebook.com', 'twitch.tv', 'x.com', 'twitter.com']
             is_video_platform = any(platform in url for platform in video_platforms)
 
             if is_video_platform:
                 return SmartDownloader.download_media(url, req_type, quality)
             else:
+                # فحص سريع للروابط المباشرة (صور/ملفات)
                 try:
                     response = requests.head(url, allow_redirects=True, timeout=5)
                     content_type = response.headers.get('Content-Type', '').lower()
                 except:
                     content_type = ''
 
+                # إذا لم يكن HTML، فهو غالباً ملف مباشر
                 if 'text/html' not in content_type and content_type != '':
                     return SmartDownloader.download_direct_file(url, response)
                 else:
@@ -1569,12 +1589,10 @@ class SmartDownloader:
         file_id = str(uuid.uuid4())[:8]
         output_template = os.path.join(DOWNLOAD_FOLDER, f'%(title)s_{file_id}.%(ext)s')
         
-        # إنشاء ملف الكوكيز من المتغير المدمج
         cookie_path = SmartDownloader._create_cookie_file()
-        
         format_selector = SmartDownloader._get_format_string(req_type, quality)
         
-        print(f"[*] Processing {req_type} -> {url}")
+        print(f"[*] Starting download: {req_type} -> {url}")
 
         ydl_opts = {
             'outtmpl': output_template,
@@ -1583,10 +1601,10 @@ class SmartDownloader:
             'no_warnings': True,
             'restrictfilenames': True,
             
-            # --- استخدام ملف الكوكيز الذي تم إنشاؤه ---
+            # تفعيل الكوكيز
             'cookiefile': cookie_path,
-            # ------------------------------------------
 
+            # خيارات تسريع وتجاوز المشاكل
             'extractor_args': {
                 'youtube': {
                     'player_client': ['android', 'web'],
@@ -1600,16 +1618,29 @@ class SmartDownloader:
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
             },
             'nocheckcertificate': True,
+            # تجاهل الأخطاء غير القاتلة
+            'ignoreerrors': True 
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 
+                # التعامل مع احتمال الفشل أو القوائم الفارغة
+                if info is None:
+                    return {'status': 'error', 'message': 'Failed to extract video info.'}
+
                 if 'entries' in info:
-                    video_info = list(info['entries'])[0]
+                    # في حالة قوائم التشغيل
+                    entries = list(info['entries'])
+                    if not entries:
+                         return {'status': 'error', 'message': 'No entries found in playlist.'}
+                    video_info = entries[0]
                 else:
                     video_info = info
+
+                if not video_info:
+                    return {'status': 'error', 'message': 'Video extraction returned empty data.'}
 
                 filename = ydl.prepare_filename(video_info)
                 
@@ -1623,7 +1654,7 @@ class SmartDownloader:
                     'path': filename
                 }
         except Exception as e:
-            print(f"DL Error: {str(e)}")
+            print(f"[!] Engine Error: {str(e)}")
             return {'status': 'error', 'message': str(e)}
 
     @staticmethod
@@ -1632,24 +1663,40 @@ class SmartDownloader:
             filename = url.split('/')[-1].split('?')[0]
             if not filename: filename = f"file_{str(uuid.uuid4())[:8]}"
             save_path = os.path.join(DOWNLOAD_FOLDER, filename)
+            
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
                 with open(save_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
-            return {'status': 'success', 'filename': filename, 'path': save_path}
+                        
+            return {
+                'status': 'success', 
+                'method': 'direct_link',
+                'filename': filename, 
+                'path': save_path
+            }
         except Exception as e:
             return {'status': 'error', 'message': str(e)}
 
 @app.route('/')
 def home():
-    return jsonify({"status": "running"})
+    return jsonify({"status": "running", "cookies_status": "injected"})
 
 @app.route('/api/download', methods=['POST'])
 def process_download():
     data = request.get_json()
-    if not data or 'url' not in data: return jsonify({'error': 'URL missing'}), 400
-    return jsonify(SmartDownloader.identify_and_download(data['url'], data.get('type', 'video'), data.get('quality', 'best')))
+    if not data or 'url' not in data:
+        return jsonify({'error': 'URL missing'}), 400
+    
+    result = SmartDownloader.identify_and_download(
+        data['url'], 
+        data.get('type', 'video'), 
+        data.get('quality', 'best')
+    )
+    
+    # تحسين الرد، 200 دائماً طالما السيرفر شغال، الخطأ داخل الجيسون
+    return jsonify(result), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
