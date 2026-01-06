@@ -139,5 +139,7 @@ def process_download():
     return jsonify(result), status_code
 
 if __name__ == '__main__':
-    # تشغيل السيرفر
-    app.run(debug=True, port=5000)
+    # الحصول على المنفذ من متغيرات البيئة في السيرفر أو استخدام 5000 كاحتياط
+    port = int(os.environ.get('PORT', 5000))
+    # التشغيل على 0.0.0.0 أمر ضروري للمنصات السحابية
+    app.run(host='0.0.0.0', port=port)
