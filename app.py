@@ -16,6 +16,7 @@ class SmartDownloader:
     
     @staticmethod
     def _prepare_cookies():
+        """تحويل ملف json إلى txt يفهمه yt-dlp"""
         json_file = 'cookies.json'
         txt_file = 'cookies.txt'
         
@@ -79,11 +80,18 @@ class SmartDownloader:
             'no_warnings': True,
             'restrictfilenames': True,
             'cookiefile': cookie_path,
+            
+            # --- التعديلات الجديدة لإصلاح خطأ قوائم التشغيل ---
             'extractor_args': {
                 'youtube': {
                     'player_client': ['android', 'web']
+                },
+                'youtubetab': {
+                    'skip': ['authcheck'] # <--- هذا السطر هو الحل للمشكلة الجديدة
                 }
             },
+            # -----------------------------------------------
+            
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
             },
@@ -93,16 +101,35 @@ class SmartDownloader:
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info)
-                return {
-                    'status': 'success',
-                    'method': 'video_engine',
-                    'title': info.get('title', 'Unknown'),
-                    'duration': info.get('duration'),
-                    'filename': os.path.basename(filename),
-                    'path': filename
-                }
+                
+                # التعامل مع قائمة التشغيل (تنزيل أول فيديو فقط أو المعلومات العامة)
+                if 'entries' in info:
+                    # إذا كان الرابط قائمة تشغيل، نأخذ أول فيديو فقط لتجنب التحميل اللانهائي
+                    # يمكنك تغيير هذا السلوك حسب حاجتك
+                    video_info = list(info['entries'])[0] 
+                    filename = ydl.prepare_filename(video_info)
+                    return {
+                        'status': 'success',
+                        'method': 'video_engine (playlist_item)',
+                        'title': video_info.get('title', 'Unknown'),
+                        'duration': video_info.get('duration'),
+                        'filename': os.path.basename(filename),
+                        'path': filename
+                    }
+                else:
+                    # فيديو مفرد
+                    filename = ydl.prepare_filename(info)
+                    return {
+                        'status': 'success',
+                        'method': 'video_engine',
+                        'title': info.get('title', 'Unknown'),
+                        'duration': info.get('duration'),
+                        'filename': os.path.basename(filename),
+                        'path': filename
+                    }
+
         except Exception as e:
+            print(f"YT-DLP ERROR: {e}") # طباعة الخطأ في الكونسول للتوضيح
             return {'status': 'error', 'message': str(e)}
 
     @staticmethod
