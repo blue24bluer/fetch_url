@@ -30,16 +30,17 @@ def convert_cookies():
 
 @app.route('/api/download', methods=['GET', 'POST'])
 def download_media():
-    # Support both Query Parameters (GET) and JSON Body (POST)
+    # التعامل مع كل من طلبات GET و POST
     if request.method == 'POST':
         data = request.get_json() or {}
         url = data.get('url')
         quality = data.get('q', '720')
-        m_type = data.get('type', 'mp4')
+        m_type = data.get('type', 'video') # default video
     else:
+        # مثال: ?url=...&q=720&type=mp3
         url = request.args.get('url')
         quality = request.args.get('q', '720')
-        m_type = request.args.get('type', 'mp4')
+        m_type = request.args.get('type', 'video')
 
     if not url:
         return jsonify({"status": "error", "message": "No URL provided"}), 400
@@ -58,44 +59,41 @@ def download_media():
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
 
-    # Handle Formats logic to avoid 'Requested format is not available'
-    # Without FFmpeg on server, we must request pre-merged formats 'best' not 'bestvideo+bestaudio'
+    # [protocol^=http] هي الأهم، فهي تمنع ظهور روابط m3u8 وتجبر النظام على الرابط المباشر
     if m_type in ['mp3', 'audio']:
-        ydl_opts['format'] = 'bestaudio/best'
+        # نحاول الحصول على m4a مباشر (جودة صوت أفضل ورابط واحد)
+        ydl_opts['format'] = 'bestaudio[ext=m4a][protocol^=http]/bestaudio[protocol^=http]'
     else:
-        # Try to find a single file with both video and audio up to requested height
-        # Fallback to 'best' if specific height fails
-        ydl_opts['format'] = f'best[height<={quality}][ext=mp4]/best[ext=mp4]/best'
+        # نحاول الحصول على فيديو mp4 جاهز (صوت وصورة مدمجين) برابط مباشر
+        # Render لا يدعم الدمج، لذا يجب طلب الملف المدمج من المصدر
+        ydl_opts['format'] = f'best[ext=mp4][height<={quality}][protocol^=http]/best[ext=mp4][protocol^=http]/best[protocol^=http]'
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
-            # Smart URL extraction
-            download_url = info.get('url')
-            if not download_url and 'formats' in info:
-                # Find the requested format url manually if automatic extraction missed
-                download_url = info['formats'][-1]['url']
+            final_url = info.get('url')
+            
+            # تأكيد إضافي: إذا كان الرابط لا يزال m3u8 (نادر الحدوث مع الإعدادات أعلاه) نبحث يدوياً
+            if not final_url or '.m3u8' in final_url:
+                for f in info.get('formats', []):
+                    if f.get('protocol', '').startswith('http') and f.get('ext') == 'mp4':
+                         final_url = f.get('url')
+                         break
 
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
-                "download_url": download_url,
+                "download_url": final_url,
                 "thumbnail": info.get('thumbnail'),
                 "duration": info.get('duration'),
                 "extension": info.get('ext') or ('mp3' if m_type == 'audio' else 'mp4'),
-                "requested_quality": quality
+                "quality": quality,
+                "type": m_type
             })
             
     except Exception as e:
-        error_msg = str(e)
-        if "Sign" in error_msg or "challenge" in error_msg:
-             return jsonify({
-                "status": "error", 
-                "message": "Server IP blocked or cookie invalid. Try updating youtube.json",
-                "detail": error_msg
-            }), 403
-        return jsonify({"status": "error", "message": error_msg}), 400
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
