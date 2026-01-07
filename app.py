@@ -9,113 +9,127 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-def get_cookies():
-    """تحميل الكوكيز إذا وجدت لتفادي الحظر"""
-    if os.path.exists('youtube.json'):
-        return 'youtube.json'  # yt-dlp يدعم قراءة json مباشرة في النسخ الحديثة أو يمكن تركه للمسار
-    return None
+def convert_cookies_to_netscape():
+    """تحويل الكوكيز من JSON إلى صيغة Netscape لتفادي خطأ yt-dlp"""
+    try:
+        json_path = 'youtube.json'
+        netscape_path = '/tmp/cookies.txt'
 
-@app.route('/')
-def home():
-    return jsonify({
-        "status": "ready",
-        "example": "/api/download?url=YOUR_URL&q=720&type=video&ext=mp4"
-    })
+        if not os.path.exists(json_path):
+            return None
+        
+        # قراءة الـ JSON
+        with open(json_path, 'r') as f:
+            cookies = json.load(f)
+        
+        # كتابة صيغة Netscape
+        with open(netscape_path, 'w') as f:
+            f.write("# Netscape HTTP Cookie File\n")
+            for c in cookies:
+                domain = c.get('domain', '')
+                flag = 'TRUE' if domain.startswith('.') else 'FALSE'
+                path = c.get('path', '/')
+                secure = 'TRUE' if c.get('secure') else 'FALSE'
+                # معالجة اختلاف التسميات بين expiry و expirationDate
+                expiry = str(int(c.get('expirationDate', c.get('expiry', 0))))
+                name = c.get('name', '')
+                value = c.get('value', '')
+                f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
+        
+        return netscape_path
+    except Exception as e:
+        logger.error(f"Cookie Conversion Error: {e}")
+        return None
 
 @app.route('/api/download', methods=['GET', 'POST'])
 def download_media():
-    # 1. استقبال جميع البارامترات الممكنة
+    # 1. استقبال البيانات (URL يتحكم بكل شيء)
     url = request.values.get('url')
-    m_type = request.values.get('type', 'video')  # video or audio
-    quality = request.values.get('q')             # e.g., 720, 1080
-    extension = request.values.get('ext')         # e.g., mp4, m4a
-    
+    m_type = request.values.get('type', 'video')  # 'video' or 'audio'
+    quality = request.values.get('q', '')         # '720', '1080', or empty
+    ext = request.values.get('ext', '')           # 'mp4', 'm4a', or empty
+
     if not url:
         return jsonify({"status": "error", "message": "No URL provided"}), 400
 
-    # 2. بناء "Format Selector" ذكي بناءً على طلباتك
-    format_selection = ""
+    # 2. تجهيز الكوكيز بصيغة صحيحة
+    cookie_file = convert_cookies_to_netscape()
 
+    # 3. بناء الفلتر الذكي (Smart Selector)
     if m_type in ['audio', 'mp3']:
-        # في الصوت، الأفضل عادة m4a لأنه مدعوم عالمياً
-        # يوتيوب لا يبث MP3 أصلاً، لذا نطلب m4a (aac)
-        target_ext = extension if extension else 'm4a'
-        format_selection = f'bestaudio[ext={target_ext}]/bestaudio/best'
-    
-    else: # VIDEO
-        # هنا الحل لمشكلة "Format not available"
-        # الشرط [acodec!=none][vcodec!=none] يضمن وجود صوت وصورة معاً في ملف واحد
+        # للصوت: نفضل m4a لأنه مدعوم عالمياً
+        target_ext = ext if ext else 'm4a'
+        # الترتيب: طلبك المحدد -> أي صوت m4a -> أفضل صوت متوفر
+        fmt_ops = f'bestaudio[ext={target_ext}]/bestaudio/best'
+    else:
+        # للفيديو: 
+        req_h = f'[height<={quality}]' if quality else ''
+        req_e = f'[ext={ext}]' if ext else '[ext=mp4]'
         
-        req_ext = f'[ext={extension}]' if extension else ''
-        req_quality = f'[height<={quality}]' if quality else ''
-        
-        # الأولوية 1: فيديو بالامتداد والجودة المطلوبة يحتوي صوت وصورة
-        f1 = f'best{req_ext}{req_quality}[acodec!=none][vcodec!=none]'
-        
-        # الأولوية 2: فيديو بالجودة المطلوبة (أي امتداد) يحتوي صوت وصورة
-        f2 = f'best{req_quality}[acodec!=none][vcodec!=none]'
-        
-        # الأولوية 3: أفضل ملف متاح (لتجنب الخطأ بأي ثمن)
+        # الترتيب المنطقي لتفادي الأخطاء:
+        # 1. فيديو + صوت بالامتداد والجودة المطلوبة
+        f1 = f'best{req_e}{req_h}[acodec!=none][vcodec!=none]'
+        # 2. فيديو + صوت بالجودة المطلوبة (أي امتداد)
+        f2 = f'best{req_h}[acodec!=none][vcodec!=none]'
+        # 3. أي فيديو يحتوي صوت وصورة (الخيار الآمن)
         f3 = 'best[acodec!=none][vcodec!=none]/best'
         
-        format_selection = f'{f1}/{f2}/{f3}'
+        fmt_ops = f'{f1}/{f2}/{f3}'
 
-    logger.info(f"Requested: {url} | Type: {m_type} | Selector: {format_selection}")
-
-    opts = {
+    ydl_opts = {
         'quiet': True,
         'noplaylist': True,
-        'format': format_selection,
-        'cookiefile': get_cookies(),
-        # محاكاة متصفح سطح مكتب لتجنب قيود الهاتف
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'format': fmt_ops,
         'socket_timeout': 15,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
     }
 
+    if cookie_file:
+        ydl_opts['cookiefile'] = cookie_file
+
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            # استخراج المعلومات بدون تحميل
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # استخراج المعلومات
             info = ydl.extract_info(url, download=False)
             
+            # محاولة جلب الرابط المباشر
             download_url = info.get('url')
             
-            # بحث يدوي عن الرابط إذا لم تنجح extract_info المباشرة
+            # فحص إضافي في حالة كان الرابط مخفياً داخل formats
             if not download_url and 'formats' in info:
-                # نختار الصيغة التي اختارها السكريبت
-                format_id = info.get('format_id')
+                # نستخدم معرف الصيغة المختارة للعثور على رابطها
+                chosen_id = info.get('format_id')
                 for f in info['formats']:
-                    if f.get('format_id') == format_id:
+                    if f.get('format_id') == chosen_id:
                         download_url = f.get('url')
                         break
             
-            # تنظيف البيانات الزائدة
-            title = info.get('title')
-            thumb = info.get('thumbnail')
-            duration = info.get('duration')
-            file_ext = info.get('ext')
-            
             return jsonify({
                 "status": "success",
-                "title": title,
-                "url": download_url,  # هذا هو رابط التحميل المباشر
-                "ext": file_ext,
-                "thumbnail": thumb,
-                "duration": duration,
-                "params_used": {
+                "title": info.get('title'),
+                "url": download_url,
+                "thumbnail": info.get('thumbnail'),
+                "duration": info.get('duration'),
+                "uploader": info.get('uploader'),
+                "ext": info.get('ext'),
+                "details": {
+                    "quality_requested": quality or "max",
                     "type": m_type,
-                    "quality_limit": quality or "max",
-                    "extension_req": extension or "auto"
+                    "cookies_used": bool(cookie_file)
                 }
             })
 
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        # تحسين رسالة الخطأ
+        logger.error(str(e))
         return jsonify({
-            "status": "error", 
+            "status": "error",
             "message": str(e).split(';')[0].replace('ERROR: ', ''),
-            "tip": "Try removing specific quality restrictions or try a different video type."
+            "tip": "Try changing 'type' or removing 'q' parameter."
         }), 400
+
+@app.route('/')
+def home():
+    return "API Online. Use /api/download"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
