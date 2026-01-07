@@ -1,4 +1,3 @@
-```python
 from flask import Flask, request, jsonify, send_from_directory
 import yt_dlp
 import json
@@ -71,4 +70,3 @@ def file(name):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
-```
