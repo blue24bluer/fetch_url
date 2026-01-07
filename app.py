@@ -5,110 +5,83 @@ import logging
 from flask import Flask, request, jsonify
 import yt_dlp
 
-logging.basicConfig(level=logging.ERROR)
-logger = logging.getLogger(__name__)
-
+logging.basicConfig(level=logging.WARNING)
 app = Flask(__name__)
 
-def convert_cookies():
-    """تحويل youtube.json إلى cookies.txt بصيغة Netscape"""
+def get_cookie_file():
     if not os.path.exists('youtube.json'):
         return None
     try:
+        if os.path.exists('cookies.txt') and os.path.getmtime('cookies.txt') > os.path.getmtime('youtube.json'):
+            return 'cookies.txt'
         with open('youtube.json', 'r', encoding='utf-8') as f:
-            cookies_data = json.load(f)
-        
-        cookie_path = 'cookies.txt'
-        with open(cookie_path, 'w', encoding='utf-8') as f:
+            data = json.load(f)
+        with open('cookies.txt', 'w', encoding='utf-8') as f:
             f.write("# Netscape HTTP Cookie File\n")
-            for c in cookies_data:
-                domain = c.get('domain', '')
-                path = c.get('path', '/')
-                secure = 'TRUE' if c.get('secure') else 'FALSE'
-                name = c.get('name', '')
-                value = c.get('value', '')
-                expires = int(c.get('expirationDate', c.get('expiry', time.time() + 31536000)))
-                flag = 'TRUE' if domain.startswith('.') else 'FALSE'
-                f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n")
-        return cookie_path
+            for c in data:
+                f.write(
+                    f"{c.get('domain')}\tTRUE\t{c.get('path')}\t"
+                    f"{'TRUE' if c.get('secure') else 'FALSE'}\t"
+                    f"{int(c.get('expirationDate', time.time() + 9999999))}\t"
+                    f"{c.get('name')}\t{c.get('value')}\n"
+                )
+        return 'cookies.txt'
     except:
         return None
 
 @app.route('/api/download', methods=['GET', 'POST'])
-def download():
+def download_media():
     url = request.values.get('url')
     if not url:
-        return jsonify({"status": "error", "message": "Missing URL"}), 400
+        return jsonify({"status": "error", "message": "Url missing"}), 400
 
-    cookie_file = convert_cookies()
-
-    # خيارات مرنة جداً لتجنب الحظر
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
+        'format': 'best/bestvideo+bestaudio',
         'noplaylist': True,
-        'check_formats': False, # لا تتحقق من الصيغ، فقط اجلب البيانات
+        'simulate': True,
+        'forceurl': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android', 'web'],
-                'skip': ['dash', 'hls'] # تقليل الضغط على السيرفر
+                'player_client': ['android', 'web']
             }
         }
     }
 
-    if cookie_file:
-        ydl_opts['cookiefile'] = cookie_file
+    cookie_path = get_cookie_file()
+    if cookie_path:
+        ydl_opts['cookiefile'] = cookie_path
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # استخراج المعلومات (بدون تحديد جودة مسبقاً لتجنب الخطأ)
             info = ydl.extract_info(url, download=False)
-            
             if not info:
-                return jsonify({"status": "error", "message": "Could not extract info"}), 500
+                return jsonify({"status": "error", "message": "Extraction failed"}), 400
 
-            # مصفوفة لتخزين الروابط المباشرة المتاحة
-            formats = info.get('formats', [])
-            
-            # محاولة البحث عن رابط مباشر (فيديو + صوت) - عادة itag 18 أو 22
-            # نبحث عن صيغة mp4 تحتوي على فيديو وصوت معاً
-            direct_url = None
-            
-            # الفلترة اليدوية: نبحث عن الروابط التي لا تحتاج دمج (Single File)
-            # هذه هي الطريقة الوحيدة التي تعمل بثبات على Render بدون FFmpeg
-            for f in reversed(formats):
-                if f.get('vcodec') != 'none' and f.get('acodec') != 'none' and f.get('url'):
-                    direct_url = f.get('url')
-                    break
-            
-            # إذا لم نجد، نأخذ أي رابط متوفر (حتى لو HLS)
-            if not direct_url and formats:
-                for f in reversed(formats):
-                    if f.get('url'):
-                        direct_url = f.get('url')
-                        break
-
-            if not direct_url:
-                return jsonify({"status": "error", "message": "No direct URL found"}), 404
+            final_url = info.get('url')
+            protocol = "http"
+            if final_url and ".m3u8" in final_url:
+                protocol = "hls"
 
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
-                "url": direct_url,
+                "url": final_url,
+                "protocol": protocol,
                 "thumbnail": info.get('thumbnail'),
-                "duration": info.get('duration'),
-                "msg": "Format found by manual fallback"
+                "duration": info.get('duration')
             })
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e).split(';')[0]
-        }), 500
+        err = str(e)
+        if "Sign in" in err:
+            return jsonify({"status": "auth_error", "message": "Cookies Invalid"}), 403
+        return jsonify({"status": "error", "message": err}), 400
 
 @app.route('/')
-def index():
-    return "Fetcher is Online"
+def home():
+    return "Ready"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
