@@ -1,10 +1,15 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import yt_dlp
 import json
 import os
 import tempfile
+import requests
+from urllib.parse import urlparse, urljoin
+import subprocess
 
 app = Flask(__name__)
+DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "media_downloads")
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def json_cookies_to_netscape(json_path):
     if not os.path.exists(json_path):
@@ -30,77 +35,76 @@ def json_cookies_to_netscape(json_path):
         return None
 
 def filter_best_direct_url(formats, media_type, target_quality):
-    """
-    دالة يدوية لتصفية الروابط بدلاً من الاعتماد على yt-dlp
-    لتجنب خطأ Format Not Available
-    """
     valid_urls = []
-    
-    # تحويل الجودة لرقم للمقارنة
     try:
         target_h = int(target_quality)
     except:
         target_h = 720
 
     for f in formats:
-        # استبعاد الفيديوهات بدون روابط
         if not f.get('url'):
             continue
-            
         proto = f.get('protocol', '')
         vcodec = f.get('vcodec', 'none')
         acodec = f.get('acodec', 'none')
         height = f.get('height', 0)
-        
-        # تصنيف الروابط
         is_direct = 'https' in proto or 'http' in proto
         is_m3u8 = 'm3u8' in proto
-        
-        # Audio logic
+
         if media_type == 'audio':
-            # نبحث عن ملف صوتي فقط، ويفضل أن يكون direct
             if vcodec == 'none' and acodec != 'none':
                 score = f.get('abr', 0) or 0
-                if is_direct: score += 1000 # نعطي أولوية للرابط المباشر
+                if is_direct: score += 1000
                 valid_urls.append({'data': f, 'score': score})
-
-        # Video logic
         else:
-            # نريد ملفاً يحتوي على صوت وصورة معاً (ملف كامل)
             if vcodec != 'none' and acodec != 'none':
                 current_h = height or 0
                 score = current_h
-                
-                # خصم نقاط إذا كانت الجودة أعلى من المطلوب (لنحترم رغبة المستخدم)
                 if current_h > target_h:
-                    score = -1000 
-                
-                # نعطي أولوية قصوى للملفات المباشرة MP4
+                    score = -1000
                 if is_direct and not is_m3u8:
                     score += 5000
-                
                 valid_urls.append({'data': f, 'score': score})
 
-    # ترتيب النتائج حسب الـ Score
     valid_urls.sort(key=lambda x: x['score'], reverse=True)
-
     if not valid_urls:
         return None
-    
     return valid_urls[0]['data']
+
+def sanitize_filename(name):
+    return "".join(c for c in name if c.isalnum() or c in " _-").rstrip()
+
+def download_hls_to_file(url, output_path, media_type="video"):
+    tmp_m3u8 = tempfile.NamedTemporaryFile(delete=False, suffix=".m3u8").name
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+    content = r.text
+    with open(tmp_m3u8, "w", encoding="utf-8") as f:
+        f.write(content)
+    cmd = [
+        "ffmpeg",
+        "-protocol_whitelist", "file,crypto,data,https,http,tcp,tls",
+        "-i", tmp_m3u8,
+        "-y",
+    ]
+    if media_type == "audio":
+        cmd += ["-vn", "-acodec", "libmp3lame", "-ab", "192k"]
+    else:
+        cmd += ["-c", "copy"]
+    cmd.append(output_path)
+    subprocess.run(cmd, check=True)
+    os.unlink(tmp_m3u8)
 
 @app.route('/api/download', methods=['GET'])
 def download_media():
     url = request.args.get('url')
     media_type = request.args.get('type', 'video')
     quality = request.args.get('q', '720')
-    
+
     if not url:
         return jsonify({'error': 'URL parameter is required'}), 400
 
     cookie_file = json_cookies_to_netscape('youtube.json')
-
-    # نطلب من yt-dlp كل الصيغ دون قيود لنتجنب الخطأ
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -109,31 +113,40 @@ def download_media():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # نجلب المعلومات الخام
             info = ydl.extract_info(url, download=False)
-            
-            # نستخدم دالتنا الخاصة لاختيار الرابط
             chosen_format = filter_best_direct_url(info.get('formats', []), media_type, quality)
-            
-            # تنظيف الكوكيز
             if cookie_file and os.path.exists(cookie_file):
                 os.unlink(cookie_file)
 
             if not chosen_format:
-                # حل أخير: نرسل أي رابط موجود في الجذر
                 final_url = info.get('url')
                 if not final_url:
-                     return jsonify({'error': 'No downloadable URL found'}), 404
+                    return jsonify({'error': 'No downloadable URL found'}), 404
+                ext = "mp4" if media_type == "video" else "mp3"
             else:
                 final_url = chosen_format['url']
-                
+                ext = chosen_format.get('ext') if chosen_format.get('ext') else ("mp4" if media_type=="video" else "mp3")
+
+            filename = sanitize_filename(info.get('title', 'output')) + "." + ext
+            output_path = os.path.join(DOWNLOAD_DIR, filename)
+
+            if "m3u8" in final_url:
+                download_hls_to_file(final_url, output_path, media_type)
+            elif "http" in final_url or "https" in final_url:
+                with requests.get(final_url, stream=True, timeout=120) as r:
+                    r.raise_for_status()
+                    with open(output_path, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+
             return jsonify({
                 'status': 'success',
                 'title': info.get('title'),
-                'download_url': final_url,
+                'download_url': f"/media/{filename}",
                 'type_detected': 'audio' if media_type == 'audio' else 'video',
                 'quality': chosen_format.get('height') if chosen_format else 'unknown',
-                'format': chosen_format.get('ext') if chosen_format else 'unknown',
+                'format': ext,
                 'thumbnail': info.get('thumbnail'),
                 'duration': info.get('duration')
             })
@@ -142,6 +155,13 @@ def download_media():
         if cookie_file and os.path.exists(cookie_file):
             os.unlink(cookie_file)
         return jsonify({'error': str(e)}), 400
+
+@app.route('/media/<path:filename>', methods=['GET'])
+def serve_file(filename):
+    path = os.path.join(DOWNLOAD_DIR, filename)
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True)
+    return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
