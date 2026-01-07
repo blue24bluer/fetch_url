@@ -5,107 +5,128 @@ import logging
 from flask import Flask, request, jsonify
 import yt_dlp
 
-logging.basicConfig(level=logging.ERROR)
+# إعداد السجلات لتوضيح الخطأ دون حشو
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-def get_cookies_path():
-    """تجهيز ملف الكوكيز"""
-    json_path = 'youtube.json'
-    cookie_path = 'cookies.txt'
-    
-    if not os.path.exists(json_path):
+def get_cookie_file():
+    """تحويل الكوكيز بصمت وبسرعة"""
+    if not os.path.exists('youtube.json'):
         return None
-
     try:
-        with open(json_path, 'r', encoding='utf-8') as f:
+        # التأكد من عدم إعادة الكتابة في كل طلب لتقليل العمليات
+        if os.path.exists('cookies.txt') and os.path.getmtime('cookies.txt') > os.path.getmtime('youtube.json'):
+            return 'cookies.txt'
+            
+        with open('youtube.json', 'r', encoding='utf-8') as f:
             data = json.load(f)
-
-        with open(cookie_path, 'w', encoding='utf-8') as f:
+        
+        with open('cookies.txt', 'w', encoding='utf-8') as f:
             f.write("# Netscape HTTP Cookie File\n")
             for c in data:
-                dom = c.get('domain', '')
-                path = c.get('path', '/')
-                sec = 'TRUE' if c.get('secure', False) else 'FALSE'
-                name = c.get('name', '')
-                val = c.get('value', '')
-                exp = int(c.get('expirationDate', c.get('expiry', time.time() + 31536000)))
-                flag = 'TRUE' if dom.startswith('.') else 'FALSE'
-                f.write(f"{dom}\t{flag}\t{path}\t{sec}\t{exp}\t{name}\t{val}\n")
-        return cookie_path
+                f.write(f"{c.get('domain')}\tTRUE\t{c.get('path')}\t"
+                        f"{'TRUE' if c.get('secure') else 'FALSE'}\t"
+                        f"{int(c.get('expirationDate', time.time() + 9999999))}\t"
+                        f"{c.get('name')}\t{c.get('value')}\n")
+        return 'cookies.txt'
     except:
         return None
 
 @app.route('/api/download', methods=['GET', 'POST'])
 def download_media():
     url = request.values.get('url')
-    if not url: return jsonify({"error": "No URL"}), 400
+    if not url:
+        return jsonify({"status": "error", "message": "Url missing"}), 400
 
-    cookie_file = get_cookies_path()
+    cookie_path = get_cookie_file()
 
-    # الإعدادات الحاسمة: عدم تحديد format لتجنب الفلترة والحذف التلقائي
+    # --- الإعدادات المنقذة ---
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        'source_address': '0.0.0.0',  # إجبار IPv4
-        'noplaylist': True,
-        'socket_timeout': 30,
-        # إزالة قيد best للسماح بأي نتيجة
-        # استخدام android لأنه الأكثر تسامحاً مع العناوين المحظورة
+        
+        # 1. عدم تحديد format صارم لتجنب الخطأ
+        # نسمح بأي جودة متوفرة (غالباً 360p في حالة الحظر)
+        'format': 'best', 
+        
+        # 2. هذا هو المفتاح في بيئة Render: عدم التحقق مما إذا كانت الصيغة تعمل
+        'check_formats': False, 
+        
+        # 3. تجاهل الأخطاء للمتابعة حتى لو كان الفيديو محظوراً جزئياً
+        'ignoreerrors': True,
+        
+        # 4. محاولة خداع السيرفر باستخدام واجهة الموبايل القديمة (بدون جافا سكربت معقد)
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'ios'],
+                'player_client': ['android', 'ios'], # iOS يوفر m3u8، android يوفر 3gp/mp4 قديم
+                'skip': ['hls', 'dash'] # محاولة جلب رابط http مباشر إن وجد
             }
-        }
+        },
+        
+        # 5. إلغاء قائمة التشغيل لتسريع الطلب
+        'noplaylist': True,
     }
 
-    if cookie_file:
-        ydl_opts['cookiefile'] = cookie_file
+    if cookie_path:
+        ydl_opts['cookiefile'] = cookie_path
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # استخراج كافة البيانات دون تحميل أو فلترة
+            # تنظيف الكاش قد يحل مشكلة البيانات القديمة
+            # ydl.cache.remove() # (موقوف للسرعة، فعله إذا استمرت المشكلة)
+
             info = ydl.extract_info(url, download=False)
             
-            # محاولة العثور على رابط مباشر
-            final_url = info.get('url')
+            # في حال فشل الاستخراج تماماً وعاد بـ None بسبب ignoreerrors
+            if not info:
+                 return jsonify({"status": "fatal", "message": "Blocked IP/Geo"}), 500
 
-            # إذا لم يوجد رابط مباشر، البحث يدوياً في قائمة الصيغ
-            if not final_url:
-                formats = info.get('formats', [])
-                # البحث عن صيغة تحتوي على صوت وصورة (mp4) ورابط صالح
-                valid_formats = [
-                    f for f in formats 
-                    if f.get('url') and f.get('ext') == 'mp4'
-                ]
+            final_url = info.get('url')
+            
+            # البحث اليدوي العنيف عن أي رابط حي
+            if not final_url and 'formats' in info:
+                # نختار الصيغة التي تملك URL وتملك Video Codec (ليست صوت فقط)
+                # وإذا لم نجد، نقبل أي رابط
+                all_urls = [f for f in info['formats'] if f.get('url')]
                 
-                if valid_formats:
-                    # نأخذ آخر صيغة لأنها الأفضل جودة عادة
-                    final_url = valid_formats[-1]['url']
-                elif formats:
-                    # أي رابط متوفر كحل أخير (حتى لو صوت فقط أو فيديو فقط)
-                    available = [f for f in formats if f.get('url')]
-                    if available:
-                        final_url = available[-1]['url']
+                # ترتيب: mp4 > others
+                mp4_urls = [u for u in all_urls if u.get('ext') == 'mp4']
+                
+                if mp4_urls:
+                    final_url = mp4_urls[-1]['url'] # الأخير عادة أفضل جودة
+                elif all_urls:
+                    final_url = all_urls[-1]['url'] # أي شيء أفضل من لا شيء
+
+            protocol = "http"
+            if final_url and ".m3u8" in final_url:
+                protocol = "hls"
 
             return jsonify({
                 "status": "success",
-                "title": info.get('title'),
+                "title": info.get('title', 'Unknown'),
                 "url": final_url,
+                "protocol": protocol,
                 "thumbnail": info.get('thumbnail'),
                 "duration": info.get('duration')
             })
 
     except Exception as e:
-        error_clean = str(e).split(';')[0].replace('ERROR: ', '')
-        logger.error(f"Error: {error_clean}")
-        return jsonify({"status": "error", "message": error_clean}), 400
+        err = str(e)
+        if "Sign in" in err:
+            return jsonify({"status": "auth_error", "message": "Cookies Invalid/Expired"}), 403
+        
+        # محاولة أخيرة بائسة: إذا فشل كل شيء، نرسل رسالة خطأ صريحة
+        logger.error(f"FAIL: {err}")
+        return jsonify({
+            "status": "error", 
+            "message": err.split(';')[0].replace('ERROR: ', '')
+        }), 400
 
 @app.route('/')
 def home():
-    return "OK"
+    return "Ready"
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
