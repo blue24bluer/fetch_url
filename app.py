@@ -16,19 +16,21 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 def json_to_cookies(json_path, txt_path):
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
+
     cookies = []
-    for c in data.get("cookies", []):
+    for c in data:
         cookies.append(
             "\t".join([
                 c.get("domain", ""),
-                "TRUE" if c.get("hostOnly") is False else "FALSE",
+                "TRUE" if c.get("domain", "").startswith(".") else "FALSE",
                 c.get("path", "/"),
                 "TRUE" if c.get("secure") else "FALSE",
-                str(c.get("expirationDate", 0)).split(".")[0],
+                str(int(c.get("expirationDate", 0))),
                 c.get("name", ""),
                 c.get("value", "")
             ])
         )
+
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write("\n".join(cookies))
 
