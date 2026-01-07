@@ -34,60 +34,55 @@ def download_media():
     url = request.args.get('url')
     media_type = request.args.get('type', 'video')
     quality = request.args.get('q', '720')
-    
+    custom_opts = request.args.get('opts')
+
     if not url:
         return jsonify({'error': 'URL parameter is required'}), 400
 
     cookie_file = json_cookies_to_netscape('youtube.json')
 
-    # صيغة الطلب لتجاهل m3u8 والتركيز على الملفات المباشرة (HTTP/HTTPS)
-    if media_type == 'audio':
-        # نطلب أفضل صوت بصيغة m4a لضمان عمل الرابط مباشرة، وإلا أي صوت يعمل
-        format_selector = 'bestaudio[ext=m4a]/bestaudio'
-    else:
-        # 1. best[height<=Q]: أفضل ملف يحتوي (صوت+صورة) ولا يتعدى الجودة المطلوبة
-        # 2. [protocol^=http]: يضمن أن البروتوكول http أو https وليس m3u8
-        format_selector = f'best[height<={quality}][protocol^=http]/best[protocol^=http]'
-
     ydl_opts = {
-        'format': format_selector,
         'quiet': True,
         'no_warnings': True,
         'cookiefile': cookie_file,
-        # هذا الخيار مهم جداً لإخبار yt-dlp بعدم تحميل قوائم التشغيل بل الملف الخام
-        'youtube_include_dash_manifest': False, 
-        'youtube_include_hls_manifest': False,
+        'force_generic_extractor': False,
     }
+
+    if media_type == 'audio':
+        ydl_opts['format'] = 'bestaudio'
+    else:
+        ydl_opts['format'] = f'bestvideo[height<={quality}]+bestaudio/best'
+
+    if custom_opts:
+        try:
+            ydl_opts.update(json.loads(custom_opts))
+        except:
+            pass
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # نستخرج المعلومات بناءً على الفلتر أعلاه
             info = ydl.extract_info(url, download=False)
-            
-            # الرابط المباشر
-            direct_url = info.get('url')
-            
-            if not direct_url:
-                # محاولة أخيرة في قائمة التنسيقات إذا لم يرجع url مباشر في الجذر
-                if 'formats' in info:
-                    for f in info['formats']:
-                        # نبحث عن الرابط الذي يطابق ما حددناه في الفلتر
-                        if f.get('format_id') == info.get('format_id'):
-                            direct_url = f.get('url')
-                            break
+
+            direct_url = None
+            if 'url' in info and info['url']:
+                direct_url = info['url']
+            elif 'formats' in info and info['formats']:
+                # نحاول نختار أفضل رابط HLS أو MP4 مباشر
+                for f in reversed(info['formats']):
+                    if f.get('protocol') in ['https', 'http'] and f.get('url'):
+                        direct_url = f['url']
+                        break
 
             if cookie_file and os.path.exists(cookie_file):
                 os.unlink(cookie_file)
-            
+
             if not direct_url:
-                 return jsonify({'error': 'No direct HTTP link found (video likely streams-only or copyrighted)'}), 404
+                return jsonify({'error': 'Could not extract direct URL'}), 500
 
             return jsonify({
                 'status': 'success',
                 'title': info.get('title'),
                 'download_url': direct_url,
-                'quality': info.get('format_note') or info.get('height'),
-                'ext': info.get('ext'),
                 'thumbnail': info.get('thumbnail'),
                 'duration': info.get('duration')
             })
@@ -95,8 +90,7 @@ def download_media():
     except Exception as e:
         if cookie_file and os.path.exists(cookie_file):
             os.unlink(cookie_file)
-        # رسالة خطأ واضحة
-        return jsonify({'error': f"Extraction failed: {str(e)}"}), 400
+        return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
