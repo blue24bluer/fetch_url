@@ -1,24 +1,31 @@
 import os
 import json
+import logging
 from flask import Flask, request, jsonify
 import yt_dlp
 
+# إعداد السجلات (Logging) لتظهر بشكل أوضح
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 
-def convert_cookies():
-    # تحويل ملف الكوكيز من JSON إلى صيغة Netscape
+def get_cookies_path():
+    """تجهيز ملف الكوكيز وتحويله إذا لزم الأمر"""
     try:
+        # نبحث عن ملف الكوكيز في المجلد الرئيسي
         if not os.path.exists('youtube.json'):
-            print("WARNING: youtube.json not found")
+            logger.warning("youtube.json not found - proceeding without cookies")
             return None
         
         with open('youtube.json', 'r') as f:
-            cookies = json.load(f)
+            cookies_json = json.load(f)
         
+        # حفظ الكوكيز بصيغة Netscape في المجلد المؤقت (ضروري للسيرفرات)
         cookie_path = '/tmp/cookies.txt'
         with open(cookie_path, 'w') as f:
             f.write("# Netscape HTTP Cookie File\n")
-            for c in cookies:
+            for c in cookies_json:
                 domain = c.get('domain', '')
                 flag = 'TRUE' if domain.startswith('.') else 'FALSE'
                 path = c.get('path', '/')
@@ -27,87 +34,90 @@ def convert_cookies():
                 name = c.get('name', '')
                 value = c.get('value', '')
                 f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
+        
+        logger.info(f"Cookies loaded successfully to {cookie_path}")
         return cookie_path
     except Exception as e:
-        print(f"Cookie Error: {e}")
+        logger.error(f"Cookie conversion error: {e}")
         return None
+
+@app.route('/')
+def home():
+    """مسار رئيسي للتحقق من أن التطبيق يعمل"""
+    return jsonify({
+        "status": "online",
+        "message": "YouTube Downloader API is running",
+        "usage": "/api/download?url=YOUR_VIDEO_URL&q=720&type=video"
+    })
 
 @app.route('/api/download', methods=['GET', 'POST'])
 def download_media():
-    # 1. استقبال البيانات سواء عبر الرابط أو JSON
-    if request.method == 'POST':
-        data = request.get_json() or {}
-        url = data.get('url')
-        quality = str(data.get('q', '720'))
-        m_type = data.get('type', 'video')
-    else:
-        url = request.args.get('url')
-        quality = str(request.args.get('q', '720'))
-        m_type = request.args.get('type', 'video')
+    # استخدام request.values للبحث في GET Params و POST Data معاً
+    target_url = request.values.get('url')
+    quality = request.values.get('q', '720')  # الجودة الافتراضية 720
+    media_type = request.values.get('type', 'video') # video or audio
 
-    if not url:
+    if not target_url:
         return jsonify({"status": "error", "message": "No URL provided"}), 400
 
-    cookie_file = convert_cookies()
+    cookie_file = get_cookies_path()
 
-    # 2. إعدادات yt-dlp للتمويه كتطبيق أندرويد
+    # صيغة الطلب
+    # نفضل MP4 برابط مباشر (http) يحتوي على صوت وصورة
+    if media_type in ['mp3', 'audio']:
+        fmt_string = 'bestaudio[ext=m4a]/bestaudio'
+    else:
+        # يحاول إيجاد فيديو MP4 بروتوكول http (رابط واحد مباشر)
+        # إذا لم يجد، يأخذ أفضل المتوفر
+        fmt_string = f'best[ext=mp4][height<={quality}][protocol^=http]/best[ext=mp4][height<={quality}]/best'
+
     ydl_opts = {
         'quiet': True,
+        'no_warnings': True,
         'noplaylist': True,
+        'format': fmt_string,
         'socket_timeout': 30,
-        # هذا هو السطر السحري لحل مشكلة التشفير في السيرفرات:
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'ios'],
-                'skip': ['hls', 'dash'] # محاولة تجنب ملفات البث المجزأة
-            }
-        },
-        'http_headers': {
-             # تظاهر بأننا هاتف محمول
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36'
-        }
+        # إزالة extractor_args الخاصة بالأندرويد لأنها تسبب مشاكل مع الكوكيز
+        # استخدام User-Agent قوي لمحاكاة متصفح سطح مكتب
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     }
 
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
 
-    # 3. اختيار الصيغة (تجنب webm إذا أمكن لأن المستخدم يريد التحميل المباشر)
-    if m_type in ['mp3', 'audio']:
-        # صيغة m4a مدعومة في كل مكان وصوتها نقي ورابطها مباشر غالباً
-        ydl_opts['format'] = 'bestaudio[ext=m4a]/bestaudio'
-    else:
-        # طلب فيديو MP4 بحد أقصى للجودة المطلوبة
-        # نطلب [protocol^=http] لنتأكد أنه رابط تحميل مباشر وليس m3u8
-        ydl_opts['format'] = f'best[ext=mp4][height<={quality}][protocol^=http]/best[ext=mp4][height<={quality}]/best[ext=mp4]/best'
-
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # عدم تحميل الفيديو، فقط جلب المعلومات
-            info = ydl.extract_info(url, download=False)
+            info = ydl.extract_info(target_url, download=False)
             
-            # محاولة استخراج الرابط النهائي
-            download_url = info.get('url')
+            # استخراج الرابط المباشر
+            final_url = info.get('url')
             
-            # إذا فشل العثور على رابط مباشر في الخاصية الرئيسية، نبحث في القائمة
-            if not download_url:
-                if 'formats' in info:
-                    # نختار آخر صيغة (عادة الأفضل)
-                    download_url = info['formats'][-1]['url']
+            # في بعض الحالات، الرابط يكون داخل قائمة formats
+            if not final_url and 'formats' in info:
+                 # نختار الرابط الذي تم اختياره بواسطة محدد التنسيق
+                 # yt-dlp usually marks the selected format clearly, but extracting just the url is safer via info.get('url')
+                 # If top level URL is missing, assume the requested format logic already filtered formats
+                 # and iterate to find the one matching criteria if needed. 
+                 # For simplicity in direct API:
+                 final_url = info['formats'][-1].get('url')
 
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
-                "download_url": download_url,
+                "url": final_url,
                 "thumbnail": info.get('thumbnail'),
                 "duration": info.get('duration'),
-                "extension": info.get('ext') or ('mp3' if m_type == 'audio' else 'mp4'),
-                "requested_quality": quality,
-                "uploader": info.get('uploader')
+                "uploader": info.get('uploader'),
+                "requested_type": media_type,
+                "quality": quality
             })
-            
+
     except Exception as e:
-        # إرجاع تفاصيل الخطأ لتسهيل التصحيح
-        return jsonify({"status": "error", "message": str(e).split(';')[0]}), 400
+        error_msg = str(e)
+        logger.error(f"Download Error: {error_msg}")
+        # تنظيف رسالة الخطأ للمستخدم
+        clean_msg = error_msg.split(';')[0].replace('ERROR: [youtube] ', '')
+        return jsonify({"status": "error", "message": clean_msg}), 400
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
