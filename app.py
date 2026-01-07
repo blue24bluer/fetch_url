@@ -6,9 +6,12 @@ import yt_dlp
 app = Flask(__name__)
 
 def convert_cookies():
+    # تحويل ملف الكوكيز من JSON إلى صيغة Netscape
     try:
         if not os.path.exists('youtube.json'):
+            print("WARNING: youtube.json not found")
             return None
+        
         with open('youtube.json', 'r') as f:
             cookies = json.load(f)
         
@@ -25,21 +28,21 @@ def convert_cookies():
                 value = c.get('value', '')
                 f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
         return cookie_path
-    except:
+    except Exception as e:
+        print(f"Cookie Error: {e}")
         return None
 
 @app.route('/api/download', methods=['GET', 'POST'])
 def download_media():
-    # التعامل مع كل من طلبات GET و POST
+    # 1. استقبال البيانات سواء عبر الرابط أو JSON
     if request.method == 'POST':
         data = request.get_json() or {}
         url = data.get('url')
-        quality = data.get('q', '720')
-        m_type = data.get('type', 'video') # default video
+        quality = str(data.get('q', '720'))
+        m_type = data.get('type', 'video')
     else:
-        # مثال: ?url=...&q=720&type=mp3
         url = request.args.get('url')
-        quality = request.args.get('q', '720')
+        quality = str(request.args.get('q', '720'))
         m_type = request.args.get('type', 'video')
 
     if not url:
@@ -47,53 +50,64 @@ def download_media():
 
     cookie_file = convert_cookies()
 
+    # 2. إعدادات yt-dlp للتمويه كتطبيق أندرويد
     ydl_opts = {
         'quiet': True,
         'noplaylist': True,
         'socket_timeout': 30,
+        # هذا هو السطر السحري لحل مشكلة التشفير في السيرفرات:
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios'],
+                'skip': ['hls', 'dash'] # محاولة تجنب ملفات البث المجزأة
+            }
+        },
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+             # تظاهر بأننا هاتف محمول
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36'
         }
     }
 
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
 
-    # [protocol^=http] هي الأهم، فهي تمنع ظهور روابط m3u8 وتجبر النظام على الرابط المباشر
+    # 3. اختيار الصيغة (تجنب webm إذا أمكن لأن المستخدم يريد التحميل المباشر)
     if m_type in ['mp3', 'audio']:
-        # نحاول الحصول على m4a مباشر (جودة صوت أفضل ورابط واحد)
-        ydl_opts['format'] = 'bestaudio[ext=m4a][protocol^=http]/bestaudio[protocol^=http]'
+        # صيغة m4a مدعومة في كل مكان وصوتها نقي ورابطها مباشر غالباً
+        ydl_opts['format'] = 'bestaudio[ext=m4a]/bestaudio'
     else:
-        # نحاول الحصول على فيديو mp4 جاهز (صوت وصورة مدمجين) برابط مباشر
-        # Render لا يدعم الدمج، لذا يجب طلب الملف المدمج من المصدر
-        ydl_opts['format'] = f'best[ext=mp4][height<={quality}][protocol^=http]/best[ext=mp4][protocol^=http]/best[protocol^=http]'
+        # طلب فيديو MP4 بحد أقصى للجودة المطلوبة
+        # نطلب [protocol^=http] لنتأكد أنه رابط تحميل مباشر وليس m3u8
+        ydl_opts['format'] = f'best[ext=mp4][height<={quality}][protocol^=http]/best[ext=mp4][height<={quality}]/best[ext=mp4]/best'
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # عدم تحميل الفيديو، فقط جلب المعلومات
             info = ydl.extract_info(url, download=False)
             
-            final_url = info.get('url')
+            # محاولة استخراج الرابط النهائي
+            download_url = info.get('url')
             
-            # تأكيد إضافي: إذا كان الرابط لا يزال m3u8 (نادر الحدوث مع الإعدادات أعلاه) نبحث يدوياً
-            if not final_url or '.m3u8' in final_url:
-                for f in info.get('formats', []):
-                    if f.get('protocol', '').startswith('http') and f.get('ext') == 'mp4':
-                         final_url = f.get('url')
-                         break
+            # إذا فشل العثور على رابط مباشر في الخاصية الرئيسية، نبحث في القائمة
+            if not download_url:
+                if 'formats' in info:
+                    # نختار آخر صيغة (عادة الأفضل)
+                    download_url = info['formats'][-1]['url']
 
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
-                "download_url": final_url,
+                "download_url": download_url,
                 "thumbnail": info.get('thumbnail'),
                 "duration": info.get('duration'),
                 "extension": info.get('ext') or ('mp3' if m_type == 'audio' else 'mp4'),
-                "quality": quality,
-                "type": m_type
+                "requested_quality": quality,
+                "uploader": info.get('uploader')
             })
             
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
+        # إرجاع تفاصيل الخطأ لتسهيل التصحيح
+        return jsonify({"status": "error", "message": str(e).split(';')[0]}), 400
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
