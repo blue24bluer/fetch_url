@@ -37,10 +37,10 @@ def download_media():
     if not url:
         return jsonify({"status": "error", "message": "Url missing"}), 400
 
-    if media_type == "audio":
-        fmt = "bestaudio/best"
+    if media_type == 'audio':
+        fmt = 'bestaudio/best'
     else:
-        fmt = "bestvideo+bestaudio/best"
+        fmt = 'bestvideo+bestaudio/best'
 
     ydl_opts = {
         'quiet': True,
@@ -67,13 +67,18 @@ def download_media():
                 return jsonify({"status": "error", "message": "Extraction failed"}), 400
 
             final_url = info.get('url')
+            if not final_url and info.get('formats'):
+                for f in reversed(info['formats']):
+                    if f.get('url'):
+                        final_url = f['url']
+                        break
+
             protocol = "http"
             if final_url and ".m3u8" in final_url:
                 protocol = "hls"
 
             return jsonify({
                 "status": "success",
-                "type": media_type,
                 "title": info.get('title'),
                 "url": final_url,
                 "protocol": protocol,
