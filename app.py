@@ -1,15 +1,14 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, Response, stream_with_context
 import yt_dlp
 import json
 import os
 import tempfile
-import requests
-from urllib.parse import urlparse, urljoin
 import subprocess
+import shutil
 
 app = Flask(__name__)
-DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "media_downloads")
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
 def json_cookies_to_netscape(json_path):
     if not os.path.exists(json_path):
@@ -17,7 +16,8 @@ def json_cookies_to_netscape(json_path):
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             cookies = json.load(f)
-        netscape_content = "# Netscape HTTP Cookie File\n"
+        temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt')
+        temp.write("# Netscape HTTP Cookie File\n")
         for cookie in cookies:
             domain = cookie.get('domain', '')
             flag = 'TRUE' if domain.startswith('.') else 'FALSE'
@@ -26,142 +26,118 @@ def json_cookies_to_netscape(json_path):
             expiration = str(int(cookie.get('expirationDate', cookie.get('expiry', 0))))
             name = cookie.get('name', '')
             value = cookie.get('value', '')
-            netscape_content += f"{domain}\t{flag}\t{path}\t{secure}\t{expiration}\t{name}\t{value}\n"
-        temp = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix='.txt')
-        temp.write(netscape_content)
+            temp.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiration}\t{name}\t{value}\n")
         temp.close()
         return temp.name
-    except Exception:
-        return None
-
-def filter_best_direct_url(formats, media_type, target_quality):
-    valid_urls = []
-    try:
-        target_h = int(target_quality)
     except:
-        target_h = 720
-
-    for f in formats:
-        if not f.get('url'):
-            continue
-        proto = f.get('protocol', '')
-        vcodec = f.get('vcodec', 'none')
-        acodec = f.get('acodec', 'none')
-        height = f.get('height', 0)
-        is_direct = 'https' in proto or 'http' in proto
-        is_m3u8 = 'm3u8' in proto
-
-        if media_type == 'audio':
-            if vcodec == 'none' and acodec != 'none':
-                score = f.get('abr', 0) or 0
-                if is_direct: score += 1000
-                valid_urls.append({'data': f, 'score': score})
-        else:
-            if vcodec != 'none' and acodec != 'none':
-                current_h = height or 0
-                score = current_h
-                if current_h > target_h:
-                    score = -1000
-                if is_direct and not is_m3u8:
-                    score += 5000
-                valid_urls.append({'data': f, 'score': score})
-
-    valid_urls.sort(key=lambda x: x['score'], reverse=True)
-    if not valid_urls:
         return None
-    return valid_urls[0]['data']
 
-def sanitize_filename(name):
-    return "".join(c for c in name if c.isalnum() or c in " _-").rstrip()
-
-def download_hls_to_file(url, output_path, media_type="video"):
-    tmp_m3u8 = tempfile.NamedTemporaryFile(delete=False, suffix=".m3u8").name
-    r = requests.get(url, timeout=120)
-    r.raise_for_status()
-    content = r.text
-    with open(tmp_m3u8, "w", encoding="utf-8") as f:
-        f.write(content)
-    cmd = [
-        "ffmpeg",
-        "-protocol_whitelist", "file,crypto,data,https,http,tcp,tls",
-        "-i", tmp_m3u8,
-        "-y",
-    ]
-    if media_type == "audio":
-        cmd += ["-vn", "-acodec", "libmp3lame", "-ab", "192k"]
-    else:
-        cmd += ["-c", "copy"]
-    cmd.append(output_path)
-    subprocess.run(cmd, check=True)
-    os.unlink(tmp_m3u8)
-
-@app.route('/api/download', methods=['GET'])
-def download_media():
+@app.route('/api/download_stream', methods=['GET'])
+def download_stream():
     url = request.args.get('url')
-    media_type = request.args.get('type', 'video')
+    media_type = request.args.get('type', 'video') # audio / video
     quality = request.args.get('q', '720')
-
+    
     if not url:
         return jsonify({'error': 'URL parameter is required'}), 400
 
     cookie_file = json_cookies_to_netscape('youtube.json')
+    
+    # 1. الحصول على رابط الـ m3u8 أو الرابط المباشر من yt-dlp
     ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'cookiefile': cookie_file,
+        'quiet': True, 'no_warnings': True, 'cookiefile': cookie_file,
     }
-
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            chosen_format = filter_best_direct_url(info.get('formats', []), media_type, quality)
-            if cookie_file and os.path.exists(cookie_file):
-                os.unlink(cookie_file)
+            
+        # اختيار أفضل جودة متاحة تناسب الطلب
+        target_url = None
+        formats = info.get('formats', [])
+        
+        # منطق بسيط لاختيار الرابط لـ ffmpeg
+        if media_type == 'audio':
+            # نفضل m4a أو bestaudio
+            selected = next((f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none'), None)
+        else:
+            # نفضل فيديو بجودة مناسبة (m3u8 أو http)
+            target_h = int(quality) if quality.isdigit() else 720
+            # ترتيب تنازلي للجودة ثم اختيار الأقرب
+            formats.sort(key=lambda x: x.get('height') or 0, reverse=True)
+            selected = next((f for f in formats if (f.get('height') or 0) <= target_h), formats[0])
 
-            if not chosen_format:
-                final_url = info.get('url')
-                if not final_url:
-                    return jsonify({'error': 'No downloadable URL found'}), 404
-                ext = "mp4" if media_type == "video" else "mp3"
-            else:
-                final_url = chosen_format['url']
-                ext = chosen_format.get('ext') if chosen_format.get('ext') else ("mp4" if media_type=="video" else "mp3")
-
-            filename = sanitize_filename(info.get('title', 'output')) + "." + ext
-            output_path = os.path.join(DOWNLOAD_DIR, filename)
-
-            if "m3u8" in final_url:
-                download_hls_to_file(final_url, output_path, media_type)
-            elif "http" in final_url or "https" in final_url:
-                with requests.get(final_url, stream=True, timeout=120) as r:
-                    r.raise_for_status()
-                    with open(output_path, "wb") as f:
-                        for chunk in r.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-
-            return jsonify({
-                'status': 'success',
-                'title': info.get('title'),
-                'download_url': f"/media/{filename}",
-                'type_detected': 'audio' if media_type == 'audio' else 'video',
-                'quality': chosen_format.get('height') if chosen_format else 'unknown',
-                'format': ext,
-                'thumbnail': info.get('thumbnail'),
-                'duration': info.get('duration')
-            })
+        target_url = selected['url'] if selected else info['url']
+        file_title = info.get('title', 'video')
 
     except Exception as e:
-        if cookie_file and os.path.exists(cookie_file):
-            os.unlink(cookie_file)
+        if cookie_file: os.unlink(cookie_file)
         return jsonify({'error': str(e)}), 400
 
-@app.route('/media/<path:filename>', methods=['GET'])
-def serve_file(filename):
-    path = os.path.join(DOWNLOAD_DIR, filename)
-    if os.path.exists(path):
-        return send_file(path, as_attachment=True)
-    return jsonify({'error': 'File not found'}), 404
+    if cookie_file: os.unlink(cookie_file)
+
+    # 2. تجهيز أوامر FFMPEG للبث المباشر (Pipe)
+    cmd = [
+        FFMPEG_BIN,
+        '-y',
+        '-re',
+        '-loglevel', 'error',
+        '-i', target_url
+    ]
+
+    if media_type == 'audio':
+        # تحويل إلى MP3 للبث
+        cmd += ['-vn', '-acodec', 'libmp3lame', '-f', 'mp3', '-']
+        mimetype = 'audio/mpeg'
+        filename = f"{file_title}.mp3"
+    else:
+        # تحويل إلى MP4 قابل للبث (Fragmented MP4)
+        # movflags ضروري جداً لأننا نكتب إلى pipe ولا يمكن العودة للخلف لكتابة الهيدر
+        cmd += ['-c:v', 'copy', '-c:a', 'aac', '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', '-']
+        mimetype = 'video/mp4'
+        filename = f"{file_title}.mp4"
+
+    # دالة البث
+    def generate_stream():
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            while True:
+                # قراءة قطع صغيرة من البيانات
+                data = process.stdout.read(4096)
+                if not data:
+                    break
+                yield data
+        except Exception:
+            process.kill()
+        finally:
+            process.stdout.close()
+            process.stderr.close()
+            process.terminate()
+
+    # ترميز اسم الملف لـ Header
+    try:
+        filename.encode('latin-1')
+    except UnicodeEncodeError:
+        filename = "downloaded_media"
+
+    return Response(
+        stream_with_context(generate_stream()),
+        mimetype=mimetype,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.route('/api/info', methods=['GET'])
+def get_info():
+    """ نقطة مساعدة لجلب العنوان فقط للعميل إذا أراد """
+    url = request.args.get('url')
+    if not url: return jsonify({'error': 'No URL'}), 400
+    try:
+        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return jsonify({'title': info.get('title', 'download')})
+    except:
+        return jsonify({'title': 'download'})
 
 if __name__ == '__main__':
+    # يجب تثبيت ffmpeg على سيرفر الرندر
     app.run(host='0.0.0.0', port=5000)
