@@ -44,6 +44,74 @@ def json_cookies_to_netscape(json_path):
         print(f"Cookie Conversion Error: {e}")
         return None
 
+# ==========================================================
+#  [NEW] مسار البحث المباشر في يوتيوب
+# ==========================================================
+@app.route('/api/search', methods=['GET'])
+def search_youtube():
+    query = request.args.get('q')
+    limit = request.args.get('limit', '10')  # عدد النتائج الافتراضي 10
+
+    if not query:
+        return jsonify({'error': 'Search query missing'}), 400
+
+    # استخدام الكوكيز إن وجدت لتحسين النتائج وتجنب الحظر
+    cookie_file = json_cookies_to_netscape('youtube.json')
+
+    # إعدادات البحث السريع (extract_flat يجعله أسرع بجلب البيانات الوصفية فقط دون روابط البث)
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'cookiefile': cookie_file,
+        'extract_flat': 'in_playlist', # مهم جداً للسرعة عند البحث
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+    }
+
+    results = []
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # صيغة البحث: ytsearch{NUMBER}:{QUERY}
+            search_query = f"ytsearch{limit}:{query}"
+            info = ydl.extract_info(search_query, download=False)
+
+            if 'entries' in info:
+                for entry in info['entries']:
+                    # استخراج البيانات المطلوبة
+                    vid_id = entry.get('id')
+                    
+                    # اختيار أفضل صورة مصغرة (عادة الأخيرة في القائمة هي الأوضح)
+                    thumbnails = entry.get('thumbnails', [])
+                    thumbnail_url = thumbnails[-1]['url'] if thumbnails else None
+                    
+                    # تجميع البيانات
+                    video_data = {
+                        'id': vid_id,
+                        'title': entry.get('title'),
+                        'url': f"https://www.youtube.com/watch?v={vid_id}", # الرابط المباشر
+                        'uploader': entry.get('uploader'),
+                        'duration': entry.get('duration'), # بالثواني
+                        'view_count': entry.get('view_count'),
+                        'thumbnail': thumbnail_url
+                    }
+                    results.append(video_data)
+
+    except Exception as e:
+        if cookie_file and os.path.exists(cookie_file): os.unlink(cookie_file)
+        return jsonify({'error': f"Search Error: {str(e)}"}), 500
+
+    # تنظيف ملف الكوكيز المؤقت
+    if cookie_file and os.path.exists(cookie_file): os.unlink(cookie_file)
+
+    return jsonify({'count': len(results), 'results': results})
+
+
+# ==========================================================
+#  مسار التحميل والبث (الكود الأصلي كما هو)
+# ==========================================================
 @app.route('/api/download', methods=['GET'])
 def download_factory():
     # --- استلام الطلبات ---
