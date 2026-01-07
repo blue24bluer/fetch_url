@@ -8,7 +8,6 @@ app = Flask(__name__)
 def convert_cookies():
     try:
         if not os.path.exists('youtube.json'):
-            print("youtube.json not found")
             return None
             
         with open('youtube.json', 'r') as f:
@@ -26,8 +25,7 @@ def convert_cookies():
                 value = c.get('value', '')
                 f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
         return 'cookies.txt'
-    except Exception as e:
-        print(f"Cookie conversion error: {e}")
+    except Exception:
         return None
 
 @app.route('/api/download', methods=['POST'])
@@ -42,31 +40,33 @@ def download_media():
         'quiet': True,
         'noplaylist': True,
         'socket_timeout': 30,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'ios']
-            }
-        },
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
+        # حذفنا player_client: android لأنه كان يسبب مشكلة "Requested format is not available"
+        # نعتمد الآن على الكوكيز وملفات تعريف المتصفح القياسية
     }
 
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
 
     if media_type == 'audio':
-        ydl_opts['format'] = 'bestaudio/best'
+        # استخدام m4a يضمن وجود رابط مباشر غالباً
+        ydl_opts['format'] = 'bestaudio[ext=m4a]/bestaudio/best'
     else:
-        ydl_opts['format'] = 'best'
+        ydl_opts['format'] = 'best[ext=mp4]/best'
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
+            
+            # محاولة العثور على رابط مباشر في حال كان الرابط الرئيسي manifest
+            download_url = info.get('url')
+            if 'formats' in info and not download_url:
+                # محاولة يدوية لاستخراج أفضل رابط في حال الفشل
+                download_url = info['formats'][-1].get('url')
+
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
-                "download_url": info.get('url'),
+                "download_url": download_url,
                 "thumbnail": info.get('thumbnail'),
                 "duration": info.get('duration'),
                 "extension": info.get('ext')
