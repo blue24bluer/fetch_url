@@ -4,19 +4,21 @@ import logging
 from flask import Flask, request, jsonify
 import yt_dlp
 
-logging.basicConfig(level=logging.INFO)
+# تقليل ضجيج السجلات
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-def convert_cookies_to_netscape():
-    try:
-        json_path = 'youtube.json'
-        netscape_path = '/tmp/cookies.txt'
+def get_cookie_file():
+    """تحويل الكوكيز لنتسكيب إذا وجدت"""
+    json_path = 'youtube.json'
+    netscape_path = '/tmp/cookies.txt'
+    
+    if not os.path.exists(json_path):
+        return None
 
-        if not os.path.exists(json_path):
-            return None
-        
+    try:
         with open(json_path, 'r') as f:
             cookies = json.load(f)
         
@@ -35,75 +37,112 @@ def convert_cookies_to_netscape():
     except Exception:
         return None
 
+@app.route('/')
+def home():
+    """Health check route"""
+    return jsonify({"status": "running", "msg": "API is online"})
+
 @app.route('/api/download', methods=['GET', 'POST'])
 def download_media():
     url = request.values.get('url')
     m_type = request.values.get('type', 'video')
-    quality = request.values.get('q', '')
-    ext = request.values.get('ext', '')
-
+    quality = request.values.get('q') # Optional
+    
     if not url:
         return jsonify({"status": "error", "message": "No URL provided"}), 400
 
-    cookie_file = convert_cookies_to_netscape()
+    cookie_file = get_cookie_file()
 
-    # === التعديل الجوهري هنا: إجبار البروتوكول على HTTP مباشر ===
-    # هذا يمنع ظهور روابط m3u8
-    direct_link_filter = "[protocol^=http]"
+    # === بناء فلتر الصيغ (الأهم لتفادي الأخطاء) ===
+    # 1. نحاول نجيب رابط مباشر (http)
+    # 2. لو فشل، نجيب أي رابط شغال حتى لو m3u8 (عشان الأداة ما توقف)
     
     if m_type in ['audio', 'mp3']:
-        # نريد ملف صوتي m4a برابط مباشر حصراً
-        target_ext = ext if ext else 'm4a'
-        fmt_ops = f'bestaudio[ext={target_ext}]{direct_link_filter}/bestaudio{direct_link_filter}/bestaudio'
+        # محاولة m4a مباشر -> m4a أي نوع -> أي صوت
+        format_str = 'bestaudio[ext=m4a][protocol^=http]/bestaudio[ext=m4a]/bestaudio/best'
     else:
-        req_h = f'[height<={quality}]' if quality else ''
-        # شرط وجود صوت وصورة + بروتوكول http مباشر
-        req_video = f'[acodec!=none][vcodec!=none]{direct_link_filter}'
-        
-        # 1. طلبك المحدد (صوت+صورة + امتداد + جودة + رابط مباشر)
-        f1 = f'best[ext={ext if ext else "mp4"}]{req_h}{req_video}'
-        # 2. جودة محددة (صوت+صورة + رابط مباشر)
-        f2 = f'best{req_h}{req_video}'
-        # 3. أي فيديو (صوت+صورة + رابط مباشر) - عادة جودة 720 أو 360
-        f3 = f'best{req_video}'
-        
-        fmt_ops = f'{f1}/{f2}/{f3}'
+        # فيديو:
+        # 1. mp4 مباشر بالجودة المطلوبة
+        # 2. mp4 مباشر بأي جودة
+        # 3. أي رابط مباشر
+        # 4. (الطوارئ) أي شيء يعمل
+        req_q = f'[height<={quality}]' if quality else ''
+        format_str = (
+            f'best[ext=mp4]{req_q}[protocol^=http]/'
+            f'best[ext=mp4][protocol^=http]/'
+            f'best[protocol^=http]/'
+            f'best' 
+        )
 
+    # إعدادات مخصصة لفك التشفير وتجاوز الحظر
     ydl_opts = {
         'quiet': True,
+        'no_warnings': True,
+        'format': format_str,
+        'socket_timeout': 10,
         'noplaylist': True,
-        'format': fmt_ops,
-        'socket_timeout': 15,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+        # هذا الخيار السحري لتجاوز الـ Signature verification failed
+        # نجبره يستخدم واجهة الأندرويد والويب المضمن لتقليل التعقيد
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web_embedded', 'ios', 'web'],
+                'skip': ['dash', 'hls'] 
+            }
+        },
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        }
     }
 
+    # إضافة الكوكيز فقط إذا كان العميل ويب (الأندرويد يتعارض مع الكوكيز أحياناً)
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            download_url = info.get('url')
+            # استخدام download=False وجلب المعلومات
+            try:
+                info = ydl.extract_info(url, download=False)
+            except yt_dlp.utils.DownloadError as de:
+                # إذا فشل التمويه القوي، نحاول بتمويه أبسط
+                if "Signature" in str(de):
+                    ydl_opts.pop('extractor_args', None) 
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl2:
+                        info = ydl2.extract_info(url, download=False)
+                else:
+                    raise de
+
+            final_url = info.get('url')
             
-            # محاولة احتياطية للبحث عن الرابط
-            if not download_url and 'formats' in info:
-                # بما أننا أجبرنا الصيغة على http، الرابط الموجود سيكون مباشراً
-                download_url = info['formats'][-1]['url']
-            
+            # إذا لم نجد رابطاً مباشراً في info، نبحث في القائمة
+            if not final_url and 'formats' in info:
+                # بما أننا رتبنا format_str بالأولوية، فإن الخيار المختار هو الأنسب
+                chosen_format_id = info.get('format_id')
+                for f in info['formats']:
+                    if f.get('format_id') == chosen_format_id:
+                        final_url = f.get('url')
+                        break
+                
+                # فشل أخير: خذ أي رابط متاح
+                if not final_url:
+                     final_url = info['formats'][-1].get('url')
+
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
-                "url": download_url, # سيكون الآن رابط تحميل مباشر وليس m3u8
+                "url": final_url,
                 "ext": info.get('ext'),
-                "details": {
-                    "type": m_type,
-                    "protocol": "direct_http_link" 
-                }
+                "protocol": "direct" if final_url and "googlevideo" in final_url and ".m3u8" not in final_url else "stream",
+                "duration": info.get('duration'),
+                "thumbnail": info.get('thumbnail'),
+                "type": m_type
             })
 
     except Exception as e:
-        logger.error(str(e))
-        return jsonify({"status": "error", "message": str(e).split(';')[0]}), 400
+        logger.error(f"FAIL: {str(e)}")
+        # تنظيف الرسالة
+        clean_msg = str(e).split(';')[0].replace('ERROR: ', '')
+        return jsonify({"status": "error", "message": clean_msg}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
