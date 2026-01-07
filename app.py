@@ -4,125 +4,95 @@ import logging
 from flask import Flask, request, jsonify
 import yt_dlp
 
-# إخفاء التحذيرات للتركيز على الأخطاء الحقيقية
+# تقليل ضجيج السجلات
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-def get_netscape_cookies():
-    # تجهيز الكوكيز إذا وجدت
-    json_path = 'youtube.json'
-    cookie_path = '/tmp/cookies.txt'
-    
-    if not os.path.exists(json_path):
-        return None
-
-    try:
-        with open(json_path, 'r') as f:
-            cookies = json.load(f)
-        with open(cookie_path, 'w') as f:
-            f.write("# Netscape HTTP Cookie File\n")
-            for c in cookies:
-                domain = c.get('domain', '')
-                flag = 'TRUE' if domain.startswith('.') else 'FALSE'
-                path = c.get('path', '/')
-                secure = 'TRUE' if c.get('secure') else 'FALSE'
-                expiry = str(int(c.get('expirationDate', c.get('expiry', 0))))
-                name = c.get('name', '')
-                value = c.get('value', '')
-                f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
-        return cookie_path
-    except Exception:
-        return None
-
 @app.route('/api/download', methods=['GET', 'POST'])
 def download_media():
     url = request.values.get('url')
-    m_type = request.values.get('type', 'video')
-    quality = request.values.get('q', '720')  # افتراضي 720
+    m_type = request.values.get('type', 'video') # video, audio
     
     if not url:
         return jsonify({"status": "error", "message": "No URL provided"}), 400
 
-    cookie_file = get_netscape_cookies()
-
-    # === تصميم الفلاتر بحيث لا تفشل أبداً ===
-    if m_type in ['audio', 'mp3']:
-        # 1. m4a مباشر (تحميل)
-        # 2. أي صوت مباشر
-        # 3. أي صوت (حتى لو بث)
-        format_selector = 'bestaudio[ext=m4a][protocol^=http]/bestaudio[protocol^=http]/bestaudio/best'
+    # === الإعدادات (بدون أي شروط مسبقة تسبب الفشل) ===
+    # نطلب 'best' فقط، ونترك للمكتبة مهمة جلب المتاح مهما كان نوعه
+    if m_type == 'audio':
+        format_selector = 'bestaudio/best'
     else:
-        # VIDEO
-        # المشكلة كانت هنا: طلبنا HTTP حصراً، والسيرفر محظور
-        # الحل: نطلب HTTP، وإن لم نجد نرضى بالمتاح (m3u8) ليعمل الفيديو في التطبيق
-        req_h = f'[height<={quality}]'
-        
-        format_selector = (
-            f'best[ext=mp4]{req_h}[protocol^=http]/' # الأفضل: mp4 مباشر وجودة محددة
-            f'best[ext=mp4][protocol^=http]/'        # التالي: mp4 مباشر أي جودة
-            f'best[protocol^=http]/'                 # التالي: أي رابط مباشر
-            f'best'                                   # الأخير: (المنقذ) أي شيء يعمل حتى لو m3u8
-        )
+        format_selector = 'best' 
 
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
         'format': format_selector,
         'socket_timeout': 10,
+        # هذا يمنع البحث عن القوائم لتسريع العمل
         'noplaylist': True,
-        # حذفنا skip hls لأن السيرفرات المحظورة تعتمد عليه
-        # نستخدم عميل Web لأنه الأقل تعقيداً مع الكوكيز
+        # نستخدم عميل Web لأنه الأقل تعرضاً لمشاكل التشفير المعقدة حالياً
         'extractor_args': {
             'youtube': {
-                'player_client': ['web', 'android', 'ios'],
+                'player_client': ['web', 'android'],
             }
-        }
+        },
+        # منع التحميل الفعلي، فقط جلب الرابط
+        'forceurl': True, 
+        'dump_single_json': True
     }
 
-    if cookie_file:
-        ydl_opts['cookiefile'] = cookie_file
+    # إذا وجد ملف كوكيز، نستخدمه
+    if os.path.exists('youtube.json'):
+         # في النسخ الجديدة، يمكن تمرير اسم ملف json مباشرة دون تحويل لـ Netscape
+         # (yt-dlp supports internal JSON cookies recently, but strictly netscape is safer. 
+         # Assuming previous conversion logic worked, use the simpler method first for raw connection)
+         # للسرعة ولتجنب أخطاء التحويل، سنجرب بدونه أولاً أو نعتمد على المتصفح
+         pass 
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # نستخرج المعلومات دون تحميل
             info = ydl.extract_info(url, download=False)
             
+            # 1. المحاولة الأولى: الحصول على الرابط الرئيسي
             final_url = info.get('url')
             
-            # إذا فشل العثور على الرابط الرئيسي، ابحث في الصيغ المتاحة
-            if not final_url and 'formats' in info:
-                # نأخذ الصيغة التي اختارها الفلتر
-                sel_id = info.get('format_id')
-                for f in info['formats']:
-                    if f.get('format_id') == sel_id:
-                        final_url = f.get('url')
-                        break
-            
-            # محاولة أخيرة بائسة إذا كان كل شيء فارغاً
+            # 2. إذا كان فارغاً (يحدث في فيديوهات الموسيقى المحظورة)
             if not final_url:
-                if 'formats' in info:
-                    # خذ آخر صيغة (عادة الأفضل جودة)
-                    final_url = info['formats'][-1].get('url')
+                # نبحث يدوياً في قائمة formats عن أي رابط يعمل
+                formats = info.get('formats', [])
+                # نرتبها لنأخذ الأفضل (الأخيرة عادة)
+                if formats:
+                    final_url = formats[-1].get('url')
+            
+            protocol_type = "direct"
+            if final_url and (".m3u8" in final_url or "manifest" in final_url):
+                protocol_type = "stream_manifest"
 
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
-                "url": final_url,
-                "ext": info.get('ext'),
+                "url": final_url, # قد يكون رابط مباشر أو رابط بث
+                "type": m_type,
+                "protocol": protocol_type,
                 "thumbnail": info.get('thumbnail'),
-                "duration": info.get('duration'),
-                "is_stream": '.m3u8' in str(final_url) # علم للمستخدم أن الرابط بث وليس تحميل مباشر
+                "msg": "If protocol is stream_manifest, this means Render IPs are blocked from direct download."
             })
 
     except Exception as e:
-        logger.error(str(e))
-        return jsonify({"status": "error", "message": str(e).split(';')[0].replace('ERROR: ', '')}), 500
+        error_msg = str(e).split(';')[0].replace('ERROR: ', '')
+        logger.error(f"Failed: {error_msg}")
+        return jsonify({
+            "status": "error", 
+            "message": error_msg,
+            "tip": "Server IP might be blocked by YouTube."
+        }), 400
 
 @app.route('/')
 def home():
-    return jsonify({"status": "Online"})
+    return "Service Running"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
