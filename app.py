@@ -5,109 +5,100 @@ import logging
 from flask import Flask, request, jsonify
 import yt_dlp
 
-logging.basicConfig(level=logging.ERROR)
-logger = logging.getLogger(__name__)
-
+logging.basicConfig(level=logging.WARNING)
 app = Flask(__name__)
 
-def setup_cookies():
-    """تحويل الكوكيز بصيغة Netscape"""
+def get_cookie_file():
     if not os.path.exists('youtube.json'):
         return None
     try:
+        if os.path.exists('cookies.txt') and os.path.getmtime('cookies.txt') > os.path.getmtime('youtube.json'):
+            return 'cookies.txt'
         with open('youtube.json', 'r', encoding='utf-8') as f:
-            cookies = json.load(f)
-        cookie_path = 'cookies.txt'
-        with open(cookie_path, 'w', encoding='utf-8') as f:
+            data = json.load(f)
+        with open('cookies.txt', 'w', encoding='utf-8') as f:
             f.write("# Netscape HTTP Cookie File\n")
-            for c in cookies:
-                domain = c.get('domain', '')
-                path = c.get('path', '/')
-                secure = 'TRUE' if c.get('secure') else 'FALSE'
-                expires = int(c.get('expirationDate', c.get('expiry', time.time() + 31536000)))
-                name = c.get('name', '')
-                value = c.get('value', '')
-                flag = 'TRUE' if domain.startswith('.') else 'FALSE'
-                f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n")
-        return cookie_path
+            for c in data:
+                f.write(
+                    f"{c.get('domain')}\tTRUE\t{c.get('path')}\t"
+                    f"{'TRUE' if c.get('secure') else 'FALSE'}\t"
+                    f"{int(c.get('expirationDate', time.time() + 9999999))}\t"
+                    f"{c.get('name')}\t{c.get('value')}\n"
+                )
+        return 'cookies.txt'
     except:
         return None
 
 @app.route('/api/download', methods=['GET', 'POST'])
-def download():
+def download_media():
     url = request.values.get('url')
+    media_type = request.values.get('type', 'video')
+
     if not url:
-        return jsonify({"status": "error", "message": "Missing URL"}), 400
+        return jsonify({"status": "error", "message": "Url missing"}), 400
 
-    cookie_file = setup_cookies()
-
-    # خيارات YT-DLP لمنع خطأ Requested format is not available
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
-        # لا نضع صيغة محددة هنا (نتركها فارغة) لتجنب فشل البحث الأولي
-        'format': '', 
-        'check_formats': False, 
+        'skip_download': True,
         'extractor_args': {
             'youtube': {
-                # استخدام ios فقط لأنه الأفضل حالياً في جلب روابط m3u8 و mp4 جاهزة
-                'player_client': ['ios'],
-                'skip': ['dash'] # تخطي dash لأنه يتطلب دمج
+                'player_client': ['android', 'web']
             }
-        },
-        'cookiefile': cookie_file if cookie_file else None,
-        'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1'
+        }
     }
+
+    cookie_path = get_cookie_file()
+    if cookie_path:
+        ydl_opts['cookiefile'] = cookie_path
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # استخراج المعلومات (لن يفشل الآن لأننا لم نحدد format)
             info = ydl.extract_info(url, download=False)
-            
-            formats = info.get('formats', [])
+            if not info or not info.get('formats'):
+                return jsonify({"status": "error", "message": "Extraction failed"}), 400
+
+            formats = info['formats']
             final_url = None
-            
-            # --- البحث اليدوي عن أفضل رابط يعمل ---
-            # 1. نبحث أولاً عن mp4 يحتوي صوت وصورة معاً (itag 18 أو 22)
-            for f in formats:
-                if f.get('vcodec') != 'none' and f.get('acodec') != 'none' and f.get('ext') == 'mp4':
-                    final_url = f.get('url')
-            
-            # 2. إذا لم نجد، نأخذ رابط m3u8 (هذا الرابط يعمل دائماً)
+
+            if media_type == 'audio':
+                audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')]
+                if audio_formats:
+                    final_url = audio_formats[-1]['url']
+            else:
+                video_formats = [f for f in formats if f.get('vcodec') != 'none' and f.get('url')]
+                if video_formats:
+                    final_url = video_formats[-1]['url']
+
             if not final_url:
-                for f in formats:
-                    if f.get('protocol') == 'm3u8_native' or '.m3u8' in f.get('url', ''):
-                        final_url = f.get('url')
+                for f in reversed(formats):
+                    if f.get('url'):
+                        final_url = f['url']
                         break
 
-            # 3. حل أخير: أول رابط متاح
-            if not final_url and formats:
-                final_url = formats[-1].get('url')
-
-            if not final_url:
-                return jsonify({"status": "error", "message": "No streamable URL found"}), 404
+            protocol = "http"
+            if final_url and ".m3u8" in final_url:
+                protocol = "hls"
 
             return jsonify({
                 "status": "success",
                 "title": info.get('title'),
                 "url": final_url,
+                "protocol": protocol,
                 "thumbnail": info.get('thumbnail'),
-                "protocol": "hls/m3u8" if ".m3u8" in final_url else "http/direct"
+                "duration": info.get('duration')
             })
 
     except Exception as e:
-        error_msg = str(e).split(';')[0]
-        if "confirm you're not a bot" in error_msg:
-            error_msg = "IP Blocked by YouTube. Update cookies.json"
-        
-        return jsonify({
-            "status": "error",
-            "message": error_msg
-        }), 400
+        err = str(e)
+        if "Sign in" in err:
+            return jsonify({"status": "auth_error", "message": "Cookies Invalid"}), 403
+        return jsonify({"status": "error", "message": err}), 400
 
 @app.route('/')
-def home(): return "API Running"
+def home():
+    return "Ready"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
