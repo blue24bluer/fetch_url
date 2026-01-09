@@ -13,7 +13,7 @@ app = Flask(__name__)
 FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
 # بيانات الاتصال بـ Github
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = "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"
 GITHUB_REPO = "blue24bluer/fetch_url"
 GITHUB_BRANCH = "main"
 GITHUB_FOLDER = "download"
