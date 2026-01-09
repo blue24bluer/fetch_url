@@ -13,63 +13,54 @@ app = Flask(__name__)
 
 FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
-# التوكن المشفر الذي وضعته (تأكد أن صلاحيته لم تنته)
-API_ENCODED = "Z2hwX3ExQVpVaXhRZTBOSzFLZXpIVjZhaTVmQWNxVHpsUzRIeDFiVwo=" 
+# التوكن بعد فك التشفير مباشرة لتجنب الأخطاء (ضعه كنص عادي هنا للأمان أثناء التجربة)
+# أو اتركه كما هو مشفر إذا كنت متأكداً منه
+GITHUB_TOKEN_RAW = "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"  # ⚠️ تأكد أن التوكن فعال
+API_ENCODED = "Z2hwX3ExQVpVaXhRZTBOSzFLZXpIVjZhaTVmQWNxVHpsUzRIeDFiVwo="
+
 GITHUB_REPO = "blue24bluer/fetch_url"
 GITHUB_BRANCH = "main"
 GITHUB_FOLDER = "download"
 
 def log(msg):
-    """دالة لطباعة معلومات التتبع في اللوجات"""
     print(f"[DEBUG] {msg}", file=sys.stderr)
 
-def get_github_token():
-    """فك تشفير التوكن وتنظيفه من أي رموز زائدة"""
+def get_token():
+    # الأولوية للتوكن الخام إذا وضعته
+    if GITHUB_TOKEN_RAW and not GITHUB_TOKEN_RAW.startswith("ضع"):
+        return GITHUB_TOKEN_RAW.strip()
     try:
-        decoded_bytes = base64.b64decode(API_ENCODED)
-        token = decoded_bytes.decode('utf-8').strip() # إزالة المسافات والأسطر الجديدة
-        return token
-    except Exception as e:
-        log(f"Error decoding token: {e}")
+        return base64.b64decode(API_ENCODED).decode('utf-8').strip()
+    except:
         return None
-
-def json_cookies_to_netscape(json_path):
-    if not os.path.exists(json_path): return None
-    try:
-        with open(json_path, 'r', encoding='utf-8') as f: cookies = json.load(f)
-        fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            f.write("# Netscape HTTP Cookie File\n")
-            for c in cookies:
-                if 'domain' not in c or 'name' not in c: continue
-                f.write(f"{c['domain']}\tTRUE\t{c.get('path','/')}\t{'TRUE' if c.get('secure') else 'FALSE'}\t{int(c.get('expiry', 0))}\t{c['name']}\t{c.get('value','')}\n")
-        return temp_path
-    except: return None
 
 @app.route('/api/download', methods=['GET', 'HEAD'])
 def download_factory():
-    # منع الخطأ عند فحص الاتصال فقط
     if request.method == 'HEAD':
         return jsonify({'status': 'ready'}), 200
 
     url = request.args.get('url')
     if not url: return jsonify({'error': 'URL missing'}), 400
 
-    log(f"Received request for URL: {url}")
+    log(f"Processing URL: {url}")
 
     media_type = request.args.get('type', 'video')
     quality_req = request.args.get('q', '720')
     out_format = request.args.get('fmt', 'mp4')
 
-    # تحضير الكوكيز
-    cookie_file = json_cookies_to_netscape('youtube.json')
-    
-    # الحصول على رابط البث
+    # --- [تصحيح الخطأ 413] ---
+    # تم إزالة الكوكيز لأنها السبب في تضخم الطلب ورفض يوتيوب له
+    # يفضل الاعتماد على User-Agent قوي بدلاً من الكوكيز التالفة
     ydl_opts = {
-        'quiet': True, 'no_warnings': True, 'cookiefile': cookie_file,
-        'http_headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        'quiet': True,
+        'no_warnings': True,
+        'cookiefile': None, # تم التعطيل عمداً
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
     }
     
+    # إعداد صيغة التحميل
     if media_type == 'audio':
         ydl_opts['format'] = "bestaudio/best"
         final_ext = 'mp3' if out_format not in ['wav', 'aac'] else out_format
@@ -77,30 +68,30 @@ def download_factory():
         final_ext = 'mp4'
         try: h = int(quality_req)
         except: h = 720
-        ydl_opts['format'] = f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/best"
+        # نطلب أفضل فيديو بأقل من أو يساوي الجودة المطلوبة لتسريع العملية
+        ydl_opts['format'] = f"bestvideo[height<={h}][ext=mp4]+bestaudio[ext=m4a]/best[height<={h}][ext=mp4]/best"
 
     try:
-        log("Extracting video info...")
+        log("Getting Video Link from YouTube...")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             target_raw_url = info.get('url')
-            title = "".join([c for c in info.get('title', 'media') if c.isalnum() or c in (' ','-','_')]).strip().replace(" ", "_")
-            if len(title) > 50: title = title[:50] # تقصير الاسم لتجنب مشاكل الطول
-            
+            # تنظيف الاسم
+            title = "".join([c for c in info.get('title', 'video') if c.isalnum() or c in (' ','-','_')]).strip().replace(" ", "_")[:50]
+            if not target_raw_url: raise Exception("No direct URL found")
+
     except Exception as e:
-        if cookie_file: os.remove(cookie_file)
-        log(f"yt-dlp Error: {e}")
+        log(f"Extraction Failed: {e}")
         return jsonify({'error': f"Extraction Error: {str(e)}"}), 400
 
-    if cookie_file: os.remove(cookie_file)
-
-    # التجهيز للتحميل
+    # مسار الملف المحلي
+    temp_dir = tempfile.gettempdir()
     filename_on_server = f"{title}.{final_ext}"
-    local_path = os.path.join(tempfile.gettempdir(), filename_on_server)
+    local_path = os.path.join(temp_dir, filename_on_server)
     
-    log(f"Starting FFMPEG download to: {local_path}")
+    log(f"Downloading content via FFMPEG to: {local_path}")
 
-    # أمر FFMPEG مع optimization للسرعة
+    # استخدام أوامر FFMPEG سريعة جداً (Ultrafast) لتجنب انقطاع الاتصال (Timeout)
     cmd = [
         FFMPEG_BIN, '-y', '-hide_banner', '-loglevel', 'error',
         '-headers', 'User-Agent: Mozilla/5.0',
@@ -108,41 +99,37 @@ def download_factory():
     ]
 
     if media_type == 'audio':
-        cmd += ['-vn']
-        if final_ext == 'mp3': cmd += ['-acodec', 'libmp3lame', '-q:a', '4'] # جودة متوسطة لسرعة أعلى
-        else: cmd += ['-acodec', 'copy']
+        cmd += ['-vn', '-c:a', 'libmp3lame', '-q:a', '5'] # جودة صوت متوسطة للسرعة
     else:
-        # استخدام preset ultrafast لتسريع العملية قدر الإمكان
-        cmd += ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-c:a', 'aac']
+        # نسخ المحتوى كما هو دون إعادة ضغط (Video Passthrough) إذا كان ذلك ممكناً، ليكون الرفع سريعاً جداً
+        # إذا كان الرابط m3u8، سنستخدم libx264 ولكن بسرعة فائقة
+        if 'm3u8' in target_raw_url:
+             cmd += ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-c:a', 'copy']
+        else:
+             cmd += ['-c', 'copy'] # أسرع طريقة على الإطلاق
 
     cmd.append(local_path)
 
     try:
         subprocess.run(cmd, check=True)
-        log("FFMPEG download completed.")
     except subprocess.CalledProcessError as e:
-        log(f"FFMPEG Failed: {e}")
-        return jsonify({'error': 'Conversion Failed'}), 500
+        if os.path.exists(local_path): os.remove(local_path)
+        return jsonify({'error': 'Download/Conversion Failed', 'details': str(e)}), 500
 
-    # التأكد من حجم الملف (GitHub لا يقبل أكبر من 100 ميجا عبر API)
-    file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
-    log(f"File size: {file_size_mb:.2f} MB")
-    
-    if file_size_mb > 95: # هامش أمان
+    # التأكد من الحجم قبل الرفع (Github API Max: 100MB)
+    filesize_mb = os.path.getsize(local_path) / (1024 * 1024)
+    if filesize_mb > 98:
         os.remove(local_path)
-        return jsonify({'error': 'File too large (>95MB) for GitHub API upload. Try a shorter video.'}), 413
+        return jsonify({'error': f'File size ({filesize_mb:.1f}MB) exceeds GitHub API limit (100MB)'}), 413
 
-    # مرحلة الرفع
+    # الرفع
     try:
-        log("Encoding file to Base64 for GitHub...")
+        log(f"Uploading {filesize_mb:.1f}MB to GitHub...")
+        
         with open(local_path, "rb") as f:
             encoded_content = base64.b64encode(f.read()).decode("utf-8")
         
-        token = get_github_token()
-        if not token:
-            os.remove(local_path)
-            return jsonify({'error': 'Invalid API Configuration'}), 500
-
+        token = get_token()
         headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3+json"
@@ -150,41 +137,41 @@ def download_factory():
         
         api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FOLDER}/{filename_on_server}"
         
-        # التحقق مما إذا كان الملف موجوداً لتحديثه (sha) أو إنشاء جديد
-        log("Checking remote file existence...")
-        check_resp = requests.get(api_url, headers=headers)
+        # فحص وجود الملف (لتحديث الـ SHA)
+        sha = None
+        try:
+            check = requests.get(api_url, headers=headers)
+            if check.status_code == 200:
+                sha = check.json()['sha']
+        except: pass
+
         data = {
-            "message": f"Upload {filename_on_server}",
+            "message": f"Add {filename_on_server}",
             "content": encoded_content,
             "branch": GITHUB_BRANCH
         }
-        
-        if check_resp.status_code == 200:
-            data["sha"] = check_resp.json()['sha'] # تحديث الملف الموجود
+        if sha: data["sha"] = sha
 
-        log("Uploading to GitHub...")
         upload_resp = requests.put(api_url, headers=headers, json=data)
-        
-        os.remove(local_path) # حذف الملف المحلي لتوفير المساحة
+        os.remove(local_path) # تنظيف
 
         if upload_resp.status_code in [200, 201]:
-            # ملاحظة: رابط التحميل المباشر الخام (raw)
-            raw_url = upload_resp.json()['content']['download_url']
-            log("Upload SUCCESS!")
+            dl_url = upload_resp.json().get('content', {}).get('download_url')
+            # fallback url creator
+            if not dl_url:
+                dl_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{GITHUB_FOLDER}/{filename_on_server}"
+            
             return jsonify({
                 "status": "success",
-                "filename": filename_on_server,
-                "direct_url": raw_url,
-                "size_mb": f"{file_size_mb:.2f}"
+                "direct_link": dl_url,
+                "file": filename_on_server
             })
         else:
-            log(f"GitHub Error: {upload_resp.text}")
-            return jsonify({"error": "Github Refused Upload", "details": upload_resp.text}), 400
+            return jsonify({"error": "GitHub Upload Error", "msg": upload_resp.text}), 400
 
     except Exception as e:
         if os.path.exists(local_path): os.remove(local_path)
-        log(f"General Error: {str(e)}")
-        return jsonify({'error': f"Processing Error: {str(e)}"}), 500
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
