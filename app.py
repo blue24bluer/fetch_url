@@ -13,19 +13,15 @@ app = Flask(__name__)
 FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
 def json_cookies_to_netscape(json_path):
-    """تحويل دقيق جداً من JSON إلى Netscape format ليعمل مع yt-dlp"""
     if not os.path.exists(json_path): return None
     try:
         with open(json_path, 'r', encoding='utf-8') as f: cookies = json.load(f)
-        
         fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             f.write("# Netscape HTTP Cookie File\n")
             f.write("# This is a generated file!  Do not edit.\n\n")
-            
             for c in cookies:
                 if 'domain' not in c or 'name' not in c: continue
-                
                 domain = c['domain']
                 flag = 'TRUE' if domain.startswith('.') else 'FALSE'
                 path = c.get('path', '/')
@@ -34,16 +30,14 @@ def json_cookies_to_netscape(json_path):
                 expiry = int(expiry) if expiry else 0
                 name = c['name']
                 value = c.get('value', '')
-                
                 f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}\n")
-        
         return temp_path
     except Exception as e:
         print(f"Cookie Conversion Error: {e}")
         return None
 
 # ==========================================================
-#  مسار البحث المباشر في يوتيوب
+#  SEARCH API
 # ==========================================================
 @app.route('/api/search', methods=['GET'])
 def search_youtube():
@@ -54,7 +48,6 @@ def search_youtube():
         return jsonify({'error': 'Search query missing'}), 400
 
     cookie_file = json_cookies_to_netscape('youtube.json')
-
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -65,20 +58,16 @@ def search_youtube():
             'Accept-Language': 'en-US,en;q=0.9',
         }
     }
-
     results = []
-    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             search_query = f"ytsearch{limit}:{query}"
             info = ydl.extract_info(search_query, download=False)
-
             if 'entries' in info:
                 for entry in info['entries']:
                     vid_id = entry.get('id')
                     thumbnails = entry.get('thumbnails', [])
                     thumbnail_url = thumbnails[-1]['url'] if thumbnails else None
-                    
                     video_data = {
                         'id': vid_id,
                         'title': entry.get('title'),
@@ -89,37 +78,36 @@ def search_youtube():
                         'thumbnail': thumbnail_url
                     }
                     results.append(video_data)
-
     except Exception as e:
         if cookie_file and os.path.exists(cookie_file): os.unlink(cookie_file)
         return jsonify({'error': f"Search Error: {str(e)}"}), 500
 
     if cookie_file and os.path.exists(cookie_file): os.unlink(cookie_file)
-
     return jsonify({'count': len(results), 'results': results})
 
 
 # ==========================================================
-#  مسار التحميل (محدث حسب الطلب لتحديد المجلد والنوع)
+#  DOWNLOAD API (Fix Applied Here)
 # ==========================================================
 @app.route('/api/download', methods=['GET'])
 def download_factory():
-    # --- استلام الطلبات ---
     url = request.args.get('url')
     media_type = request.args.get('type', 'video')   # audio / video
-    quality_req = request.args.get('q', '720')
-    out_format = request.args.get('fmt', 'mp4')      # mp4, mp3, mkv, wav...
-    
-    # [شرط] وجود chatid لاستخدامه كاسم للملف
     chatid = request.args.get('chatid')
+    
+    # [FIX 1] تحديد الصيغة الافتراضية بذكاء بناءً على النوع
+    default_fmt = 'mp3' if media_type == 'audio' else 'mp4'
+    out_format = request.args.get('fmt', default_fmt)
+    
+    quality_req = request.args.get('q', '720')
 
     if not url: return jsonify({'error': 'URL missing'}), 400
-    if not chatid: return jsonify({'error': 'chatid parameter is mandatory'}), 400
+    if not chatid: return jsonify({'error': 'chatid is mandatory'}), 400
 
     # 1. تحضير الكوكيز
     cookie_file = json_cookies_to_netscape('youtube.json')
 
-    # 2. إعداد yt-dlp لاستخراج الرابط
+    # 2. YT-DLP Setup
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -144,25 +132,31 @@ def download_factory():
                 format_selector = f"bestvideo[height<=720]+bestaudio/best[height<=720]/best"
     
     ydl_opts['format'] = format_selector
-
     target_raw_url = None
-    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             target_raw_url = info.get('url')
-            # اسم الملف سيعتمد على chatid فقط لاحقاً
-
     except Exception as e:
         if cookie_file and os.path.exists(cookie_file): os.unlink(cookie_file)
-        return jsonify({'error': f"Server Extraction Error: {str(e)}"}), 400
-
+        return jsonify({'error': f"Extraction Error: {str(e)}"}), 400
     if cookie_file and os.path.exists(cookie_file): os.unlink(cookie_file)
 
-    # 3. معالجة وحفظ الملف محلياً عبر FFMPEG
-    
+    # 3. FFMPEG Processing
     temp_dir = tempfile.gettempdir()
-    local_filename = f"{chatid}.{out_format}" # chatid + الامتداد المحدد (مثلاً 12345.mp3)
+    
+    # [FIX 2] منع تكرار الامتداد في الاسم (مثلاً: اذا كان chatid ينتهي ب .mp3 لا نضيفها مرة أخرى)
+    if chatid.lower().endswith(f".{out_format}"):
+        clean_name = chatid # الاسم يحتوي على الصيغة بالفعل
+    else:
+        # إذا كان الاسم فيه صيغة أخرى (مثلا اسمه video.xyz والمطلوب mp4)
+        root, ext = os.path.splitext(chatid)
+        if ext: # يوجد امتداد، نقوم باستبداله
+             clean_name = f"{root}.{out_format}"
+        else:   # لا يوجد امتداد، نضيفه
+             clean_name = f"{chatid}.{out_format}"
+    
+    local_filename = clean_name
     local_file_path = os.path.join(temp_dir, local_filename)
 
     if os.path.exists(local_file_path):
@@ -174,7 +168,7 @@ def download_factory():
         '-i', target_raw_url
     ]
 
-    # إعدادات الصيغ
+    # ضبط خيارات ffmpeg حسب النوع
     if media_type == 'audio':
         cmd.append('-vn')
         if out_format == 'mp3':
@@ -183,6 +177,7 @@ def download_factory():
             cmd += ['-acodec', 'pcm_s16le', '-f', 'wav']
         else: 
             cmd += ['-acodec', 'aac', '-f', 'adts']
+            if out_format == 'm4a': cmd[-2] = 'ipod'
     else:
         # فيديو
         if out_format == 'mp4':
@@ -199,34 +194,25 @@ def download_factory():
     except subprocess.CalledProcessError as e:
          return jsonify({'error': 'FFmpeg processing failed', 'details': str(e)}), 500
 
-    # 4. عملية الرفع إلى Github مع تحديد المجلد حسب النوع
-    
-    # التوكين المشفر (كما هو مطلوب)
+    # 4. Upload to Github
     encrypted_token = "Z2hwX3ExQVpVaXhRZTBOSzFLZXpIVjZhaTVmQWNxVHpsUzRIeDFiVwo="
-    
     try:
         github_token = base64.b64decode(encrypted_token).decode('utf-8').strip()
         
         with open(local_file_path, "rb") as f:
-            content_bytes = f.read()
-            encoded_content = base64.b64encode(content_bytes).decode("utf-8")
+            encoded_content = base64.b64encode(f.read()).decode("utf-8")
         
         repo_owner = "blue24bluer"
         repo_name = "fetch_url"
 
-        # === [NEW] تحديد المجلد بناءً على النوع ===
-        # إذا كان video -> download/video/filename.mp4
-        # إذا كان audio -> download/music/filename.mp3
-        
-        sub_folder = "files" # افتراضي
+        # تحديد المجلد بناءً على النوع
+        sub_folder = "files"
         if media_type == 'video':
             sub_folder = "video"
         elif media_type == 'audio':
             sub_folder = "music"
             
-        # بناء المسار النهائي داخل جيت هب:
         github_path = f"download/{sub_folder}/{local_filename}"
-        
         api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/{github_path}"
         
         headers = {
@@ -236,21 +222,17 @@ def download_factory():
         }
         
         data = {
-            "message": f"Upload {media_type} via chatid {chatid}",
+            "message": f"Upload {media_type}: {chatid}",
             "content": encoded_content
         }
         
-        # إرسال طلب الرفع (PUT)
         response = requests.put(api_url, headers=headers, json=data)
         
-        # تنظيف محلي
         if os.path.exists(local_file_path):
             os.remove(local_file_path)
 
         if response.status_code in [200, 201]:
-            # تكوين الرابط المباشر للعودة للعميل
             direct_link = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/main/{github_path}"
-            
             return jsonify({
                 "status": "success", 
                 "download_url": direct_link,
@@ -258,17 +240,16 @@ def download_factory():
                 "filename": local_filename
             })
         else:
+            # (اختياري) محاولة تحديث الملف إذا كان موجوداً، لكن لنسهل الأمر نعيد الخطأ حالياً
             return jsonify({
-                "error": "Github Upload Failed", 
+                "error": "Github Upload Failed (Maybe file exists?)", 
                 "github_status": response.status_code,
-                "github_response": response.json()
+                "github_msg": response.json()
             }), 502
 
     except Exception as e:
-        if os.path.exists(local_file_path):
-            os.remove(local_file_path)
-        return jsonify({'error': f"Upload Process Error: {str(e)}"}), 500
-
+        if os.path.exists(local_file_path): os.remove(local_file_path)
+        return jsonify({'error': f"Upload Error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
